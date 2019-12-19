@@ -2,6 +2,8 @@
 <html>
 <head>
 <link href='https://fonts.googleapis.com/css?family=Alfa Slab One' rel='stylesheet'>
+<link href='https://fonts.googleapis.com/css?family=Sofia' rel='stylesheet'>
+<link href='https://fonts.googleapis.com/css?family=Cherry Cream Soda' rel='stylesheet'>
 <style>
 #p0 {
     background-image: url("b2.jpg");
@@ -11,15 +13,6 @@
     background-size: cover; 
     height: 100vh; 
 }
-
-#p1 {
-    /* font-family: "Impact", Charcoal, sans-serif; */
-    font-family: 'Alfa Slab One';
-    color: rgb(255, 255, 255);
-    -webkit-text-stroke-width: 2px;
-    -webkit-text-stroke-color: #393E46;
-    font-size: 5vw;
-} 
 
 #img1 {
     display: block;
@@ -34,8 +27,10 @@
   /* background-color: yellow;  */
   list-style-type: none;
   text-align: right;
+  width: 15%;
   margin: 0;
   padding: 2%;
+  float: right;
 }
 
 .nav li {
@@ -44,13 +39,43 @@
   padding: 1%;
 }
 
-name {
+tietal {
+    /* font-family: "Impact", Charcoal, sans-serif; */
+    font-family: 'Alfa Slab One';
+    color: rgb(255, 255, 255);
+    -webkit-text-stroke-width: 2px;
+    -webkit-text-stroke-color: #393E46;
+    font-size: 5vw;
+    text-align: center;
     margin: 0;
     position: absolute;
     top: 50%;
     left: 50%;
     -ms-transform: translate(-50%, -50%);
     transform: translate(-50%, -50%);
+}
+
+name {
+    font-family: 'Sofia';
+    color: rgb(255, 255, 255);
+    -webkit-text-stroke-width: 1px;
+    -webkit-text-stroke-color: #393E46;
+    font-size: 2.5vw;
+    margin: 0;
+    text-align: left;
+}
+
+section:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+@media (max-width: 600px) {
+  nav, article {
+    width: 100%;
+    height: auto;
+  }
 }
 
 
@@ -74,20 +99,28 @@ a:hover, a:active {
 <body id ="p0">
 
 
+<section>
 
 
 
-<ul class="nav">
-        <li><a href="#home">Home</a></li>
-        <li><a href="#portfolio">Portfolio</a></li>
-        <li><a href="#resume">Resume</a></li>
-        <li><a href="#about">About</a></li>        
-        <li><a href="#contact">Contact</a></li>
-</ul>
+    <ul class="nav">
+            <li><a href="#home">Home</a></li>
+            <li><a href="#portfolio">Portfolio</a></li>
+            <li><a href="#resume">Resume</a></li>
+            <li><a href="#about">About</a></li>        
+            <li><a href="#contact">Contact</a></li>
+    </ul>
 
-<name>
-    <p id="p1">Software Devolper</p>
-</name>
+    <name>
+            <p id="p1">J. Alex Mina</p>
+    </name>
+</section>
+
+<tietal>
+    <p>Software Devolper</p>
+</tietal>
+
+
 
 </body>
 </html>
