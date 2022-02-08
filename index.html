@@ -187,8 +187,8 @@
 
 			// When true, moving the mouse draws on the canvas
 	let isDrawing = false;
-	let x = 1;
-	let y = 1;
+	let x = 0;
+	let y = 0;
 	var timeOut;
 
 	let m_oldX = 0;
@@ -204,7 +204,57 @@
 
 	// event.offsetX, event.offsetY gives the (x,y) offset from the edge of the canvas.
 
+	// Add the event listeners for mousedown, mousemove, and mouseup
+	glCanvas.addEventListener('mousedown', e => {
+	m_oldX = e.offsetX;;
+	m_oldY = e.offsetY;;
+	isDrawing = true;
+	//main(m_angleX, m_angleY);
+	});
+
+	glCanvas.addEventListener('mousemove', e => {
+	 if (isDrawing === true) {
+		x = e.offsetX;
+		y = e.offsetY;
+
+		m_angleY += x - m_oldX;
+		m_angleX += y - m_oldY;
+
 	
+
+		
+		m_oldX = x;
+		m_oldY = y;
+
+		if (m_angleX < -90) m_angleX = -90;
+		if (m_angleX > 90) m_angleX = 90;
+		
+		
+		mov_matrixHold = main(m_angleX, m_angleY, true, mov_matrixHold);
+
+
+		//checking to see if mouse stops
+		if (timeOut) clearTimeout(timeOut); 
+    	timeOut = setTimeout(function(){ 
+			//console.log("Mouse Has Stopped") 
+			isDrawing = false;
+			// m_oldX = m_angleY;
+			// m_oldY = m_angleX;
+			m_angleX = 0;
+			m_angleY = 0;
+			mov_matrixHold = main(m_angleX, m_angleY, false, mov_matrixHold);
+		}, 100); 
+	 }
+	});
+
+	window.addEventListener('mouseup', e => {
+	if (isDrawing === true) {
+		isDrawing = false;
+		// m_oldX = m_angleY;
+		// m_oldY = m_angleX;
+		//mov_matrixHold = main(m_angleX, m_angleY, false, mov_matrixHold);
+	}
+	});
 
 
 		main(x, y, false, mov_matrix);
@@ -235,54 +285,7 @@
 			{
 				alert("Unable to initialize WebGL. Your browser or machine may not support it.");
 				return;
-			}
-			
-			
-
-
-
-
-			canvas.addEventListener('mousemove', e => {
-
-
-				m_angleY = e.offsetX - m_oldX;
-				m_angleX = e.offsetY - m_oldY;				
-
-				
-				m_oldX = e.offsetX;
-				m_oldY = e.offsetY;
-
-				if (m_angleX < -90) m_angleX = -90;
-				if (m_angleX > 90) m_angleX = 90;	
-
-				x = m_angleX;
-				y = m_angleY;
-				
-
-			});
-
-			// Add the event listeners for mousedown, mousemove, and mouseup
-			canvas.addEventListener('mousedown', e => {
-			// m_oldX = e.offsetX;;
-			// m_oldY = e.offsetY;;
-			
-			});
-
-			
-
-			canvas.addEventListener('mouseup', e => {
-
-
-				// m_oldX = m_angleY;
-				// m_oldY = m_angleX;
-				//mov_matrixHold = main(m_angleX, m_angleY, false, mov_matrixHold);
-
-			});
-
-
-
-
-
+			}	
 			
 			gl.clearColor(0.0, 0.0, 0.0, 1.0);		
 			// Clear the color buffer with specified clear color
@@ -332,80 +335,23 @@
 
 			/*=================== Shaders =========================*/
 
-			// var vertCode = '#version 330 core '+
-
-			// 'layout(location = 0) in vec3 ObjectSpace_position; // object-space vertex position'+
-			// 'layout(location = 1) in vec3 ObjectSpace_normal;   // object-space vertex normal'+
-
-			// 'uniform mat4 model, view, projection;'+
-
-			// 'out vec3 CameraSpace_position; // eye-space position'+
-			// 'out vec3 CameraSpace_normal;   // eye-space normal'+
-
-			// 'void main() {'+
-			// 	'CameraSpace_position = (view * model * vec4(ObjectSpace_position, 1.0)).xyz;'+
-			// 	'CameraSpace_normal = (view * model * vec4(ObjectSpace_normal, 0.0)).xyz;'+
-
-			// 	'gl_Position = projection * view * model * vec4(ObjectSpace_position, 1.0);'+
-			// '}';
-
-
-			var vertCode = 
-			'attribute vec3 ObjectSpace_position;'+
-			'attribute vec3 ObjectSpace_normal;'+
-
+			var vertCode = 'attribute vec3 position;'+
 			'uniform mat4 Pmatrix;'+
 			'uniform mat4 Vmatrix;'+
 			'uniform mat4 Mmatrix;'+
 			'attribute vec3 color;'+//the color of the point
 			'varying vec3 vColor;'+
 
-			'out vec3 CameraSpace_position; // eye-space position'+
-			'out vec3 CameraSpace_normal;   // eye-space normal'+
-
-
 			'void main(void) { '+//pre-built function
-				'CameraSpace_position = (view * model * vec4(ObjectSpace_position, 1.0)).xyz;'+
-				'CameraSpace_normal = (view * model * vec4(ObjectSpace_normal, 0.0)).xyz;'+
 				'gl_Position = Pmatrix*Vmatrix*Mmatrix*vec4(position, 1.);'+
 				'vColor = color;'+
 			'}';
 
-
-			var fragCode = 
-			'precision mediump float;'+
-			'uniform mat4 Mmatrix, Vmatrix, Pmatrix;'+
-
-			// Light properties
-			'const vec3 WorldSpace_lightPos = vec3(2, 2, 2); // world-space light position'+
-
-
-			'in vec3 CameraSpace_position; // eye-space position'+
-			'in vec3 CameraSpace_normal;   // eye-space normal'+
-
-
-
-			'void main() {'+
-				// some vectors that might be helpful (all in camera space, so if you're working in world
-				// space you'll need to do these differently)
-				'vec3 CameraSpace_toLight = (Vmatrix*vec4(WorldSpace_lightPos,1)).xyz - CameraSpace_position;'+
-				'vec3 CameraSpace_toLight_n = normalize(CameraSpace_toLight); // normalized, camera-space vector to light'+
-				'vec3 CameraSpace_toEye_n = -normalize(CameraSpace_position); // normalized, camera-space vector to eye'+
-				'vec3 CameraSpace_normal_n = normalize(CameraSpace_normal);   // normalized, camera-space normal'+
-
-
-				'gl_fragColor = color;'+
-				// to do: phong lighting model
-
+			var fragCode = 'precision mediump float;'+
+			'varying vec3 vColor;'+
+			'void main(void) {'+
+				'gl_FragColor = vec4(vColor, 1.);'+
 			'}';
-
-
-
-			// var fragCode = 'precision mediump float;'+
-			// 'varying vec3 vColor;'+
-			// 'void main(void) {'+
-			// 	'gl_FragColor = vec4(vColor, 1.);'+
-			// '}';
 
 			var vertShader = gl.createShader(gl.VERTEX_SHADER);
 			gl.shaderSource(vertShader, vertCode);
@@ -420,7 +366,20 @@
 			gl.attachShader(shaderProgram, fragShader);
 			gl.linkProgram(shaderProgram);
 
-			
+			/* ====== Associating attributes to vertex shader =====*/
+			var Pmatrix = gl.getUniformLocation(shaderProgram, "Pmatrix");
+			var Vmatrix = gl.getUniformLocation(shaderProgram, "Vmatrix");
+			var Mmatrix = gl.getUniformLocation(shaderProgram, "Mmatrix");
+
+			gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+			var position = gl.getAttribLocation(shaderProgram, "position");
+			gl.vertexAttribPointer(position, 3, gl.FLOAT, false,0,0) ;
+
+			// Position
+			gl.enableVertexAttribArray(position);
+			gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+			var color = gl.getAttribLocation(shaderProgram, "color");
+			gl.vertexAttribPointer(color, 3, gl.FLOAT, false,0,0) ;
 
 			/* ====== Associating attributes to vertex shader =====*/
 			var Pmatrix = gl.getUniformLocation(shaderProgram, "Pmatrix");
@@ -428,18 +387,11 @@
 			var Mmatrix = gl.getUniformLocation(shaderProgram, "Mmatrix");
 
 			gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-			var position = gl.getAttribLocation(shaderProgram, "ObjectSpace_position");
+			var position = gl.getAttribLocation(shaderProgram, "position");
 			gl.vertexAttribPointer(position, 3, gl.FLOAT, false,0,0) ;
-
 
 			// Position
 			gl.enableVertexAttribArray(position);
-			gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-			var normal = gl.getAttribLocation(shaderProgram, "ObjectSpace_normal");
-			gl.vertexAttribPointer(normal, 3, gl.FLOAT, false,0,0) ;
-
-
-			gl.enableVertexAttribArray(normal);
 			gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
 			var color = gl.getAttribLocation(shaderProgram, "color");
 			gl.vertexAttribPointer(color, 3, gl.FLOAT, false,0,0) ;
@@ -532,25 +484,6 @@
 				else{
 					
 				}
-
-				maxRotSpeed = 10;
-
-				if(x > 1) x -= 0.2;
-				else if(x < -1) x += 0.2;
-
-				if(y > 1) y -=0.2;
-				else if(y < -1) y += 0.2;
-
-
-				if(x > maxRotSpeed) x = maxRotSpeed;
-				else if(x < -maxRotSpeed) x = -maxRotSpeed;
-
-				if(y > maxRotSpeed) y = maxRotSpeed;
-				else if(y < -maxRotSpeed) y = -maxRotSpeed;
-
-
-
-
 				rotateZ(mov_matrix, (x * 3.1415/180.0));//time
 				rotateY(mov_matrix, (y * 3.1415/180.0));
 
