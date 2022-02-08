@@ -183,6 +183,7 @@
 
 	<!-- trial -->							
 	<script>
+<<<<<<< HEAD
 
 	var mov_matrix = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
 	var mov_matrixHold = [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1];
@@ -212,13 +213,15 @@
 		main(x, y, false, mov_matrix);
 
 	
+=======
+		main();
+>>>>>>> parent of 16eb585 (Update index.html)
 	
 		//
 		// start here
 		//
-		function main(x, y, rotates, movMat) 
+		function main() 
 		{
-			//console.log(x);
 			//getTime();
 			const canvas = document.querySelector("#glcanvas");
 			// Initialize the GL context
@@ -509,12 +512,10 @@
 
 			/*================= Drawing ===========================*/
 			var time_old = 0;
-
-			
-
 			var animate = function(time) 
 			{
 				var dt = time-time_old;
+<<<<<<< HEAD
 				// rotateZ(mov_matrix, dt*0.005);//time
 				// rotateY(mov_matrix, dt*0.002);
 				// rotateX(mov_matrix, dt*0.003);
@@ -552,29 +553,29 @@
 				
 				//rotateX(mov_matrix, dt*0.003);
 				
+=======
+				rotateZ(mov_matrix, dt*0.005);//time
+				rotateY(mov_matrix, dt*0.002);
+				rotateX(mov_matrix, dt*0.003);
+>>>>>>> parent of 16eb585 (Update index.html)
 				time_old = time;
 
 				gl.enable(gl.DEPTH_TEST);
 				gl.depthFunc(gl.LEQUAL);
 				gl.clearColor(0.5, 0.5, 0.5, 0.9);
 				gl.clearDepth(1.0);
-				gl.useProgram(shaderProgram);
 
 				gl.viewport(0.0, 0.0, canvas.width, canvas.height);
 				gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 				gl.uniformMatrix4fv(Pmatrix, false, proj_matrix);
 				gl.uniformMatrix4fv(Vmatrix, false, view_matrix);
-				gl.uniformMatrix4fv(Mmatrix, false, movMat);
+				gl.uniformMatrix4fv(Mmatrix, false, mov_matrix);
 				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
 				gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
 
 				window.requestAnimationFrame(animate);
-				
 			}
 			animate(0);
-			return(mov_matrix);
-
-			
 
 		}
 	</script>
