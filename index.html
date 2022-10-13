@@ -125,6 +125,26 @@
 	<!-- trial -->
 	
 	<script>
+		// Clamp number between two values with the following line:
+		const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
+
+		var mousex = 0;
+		var mousey = 0;
+		// canvas.addEventListener( 'mousemove', updateMousePosition, false );
+
+		// function updateMousePosition(e){
+		// 	console.log(e.pageX);
+		// 	mousex = e.pageX;
+		// 	mousey = e.pageY;
+			
+		// };
+
+		
+
+		//vec2 mp = vec2(mouse.x / resolution.x, 1.0 - mouse.y / resolution.y);
+
+
+
 		/*============= Creating a canvas ======================*/
 		var canvas = document.getElementById('glcanvas');
 		gl = canvas.getContext('experimental-webgl');
@@ -239,36 +259,47 @@
 
 		/*================= Mouse events ======================*/
 
-		var AMORTIZATION = 0.95;
+		var AMORTIZATION_DX = 0.95;
+		var AMORTIZATION_DY = 0.95;
 		var drag = false;
-		var old_x, old_y;
-		var dX = 0, dY = 0;
+		var old_x = 0, old_y = 0;
+		var dX = 0.07, dY = 0.07;
 
-		var mouseDown = function(e) {
-		   drag = true;
-		   old_x = e.pageX, old_y = e.pageY;
-		   e.preventDefault();
-		   return false;
-		};
+		// var mouseDown = function(e) {
+		//    drag = true;
+		//    old_x = e.pageX, old_y = e.pageY;
+		//    e.preventDefault();
+		//    return false;
+		// };
 
-		var mouseUp = function(e){
-		   drag = false;
-		};
+		// var mouseUp = function(e){
+		//    drag = false;
+		// };
 
 		var mouseMove = function(e) {
-		   if (!drag) return false;
+		//    if (!drag) return false;
 		   dX = (e.pageX-old_x)*2*Math.PI/canvas.width,
 		   dY = (e.pageY-old_y)*2*Math.PI/canvas.height;
-		   THETA+= dX;
-		   PHI+=dY;
+
+		   dX = clamp(dX, -0.09, 0.09);
+		   dY = clamp(dY, -0.09, 0.09);
+
+		   THETA+= (dX);
+		   PHI+=(dY);
 		   old_x = e.pageX, old_y = e.pageY;
-		   e.preventDefault();
+
+
+		   //e.preventDefault();
+
+				// mousex = e.pageX;				
+				// mousey = e.pageY;
+				// console.log(mousex, ", ", mousey);
 		};
 
-		canvas.addEventListener("mousedown", mouseDown, false);
-		canvas.addEventListener("mouseup", mouseUp, false);
-		canvas.addEventListener("mouseout", mouseUp, false);
-		canvas.addEventListener("mousemove", mouseMove, false);
+		// canvas.addEventListener("mousedown", mouseDown, false);
+		// canvas.addEventListener("mouseup", mouseUp, false);
+
+		window.addEventListener("mousemove", mouseMove, false);
 
 		/*=========================rotation================*/
 
@@ -302,16 +333,35 @@
 
 		/*=================== Drawing =================== */
 
-		var THETA = 0,
-		PHI = 0;
+		var THETA = 0, PHI = 0;
 		var time_old = 0;
 
 		var animate = function(time) {
 		   var dt = time-time_old;
 
 		   if (!drag) {
-			  dX *= AMORTIZATION, dY*=AMORTIZATION;
+			  if(Math.abs(dX) < 0.05) AMORTIZATION_DX = 1.0;
+			  else AMORTIZATION_DX = 0.95;
+
+			  if(Math.abs(dY) < 0.05) AMORTIZATION_DY = 1.0;
+			  else AMORTIZATION_DY = 0.95;
+
+			  dX *= AMORTIZATION_DX, dY*=AMORTIZATION_DY;
+
+
+			  
+
+			  
+			  dX = clamp(dX, -0.05, 0.05);
+			  dY = clamp(dY, -0.05, 0.05);
+
+			  console.log(THETA, ", ", PHI);
+			  
 			  THETA+=dX, PHI+=dY;
+
+			  
+
+
 		   }
 
 		   //set model matrix to I4
@@ -336,8 +386,8 @@
 
 		   // gl.depthFunc(gl.LEQUAL);
 
-		   gl.clearColor(0.5, 0.5, 0.5, 0.9);
-		   gl.clearDepth(1.0);
+		   gl.clearColor(0, 0, 0, 0);
+		   //gl.clearDepth(1.0);
 		   gl.viewport(0.0, 0.0, canvas.width, canvas.height);
 		   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
