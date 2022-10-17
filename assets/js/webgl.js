@@ -229,7 +229,7 @@ var animate = function(time) {
       dX = clamp(dX, -0.05, 0.05);
       dY = clamp(dY, -0.05, 0.05);
 
-      console.log(THETA, ", ", PHI);
+      //console.log(THETA, ", ", PHI);
       
       THETA+=dX, PHI+=dY;
 
