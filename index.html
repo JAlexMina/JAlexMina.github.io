@@ -100,29 +100,42 @@
 											
 
 
-											v_velocity = a_velocity + 0.01 * u_acceleration;
+											v_velocity = a_velocity + 0.01 * (u_acceleration*1.2);
 											v_position = a_position + 0.01 * v_velocity;
 											v_spawntime = a_spawntime;
 											v_lifetime = a_lifetime;
 
-											if(distance(u_mousePos, v_position) < 0.1)
+											float radius = 0.05;
+
+											if(distance(u_mousePos, v_position) < radius)
 											{
-												v_velocity.y = 0.2;
+												v_velocity = vec2(0.0, 0.0);
+												
 
-												//if it lands perfectly on top give a nudge
-												if(v_position.x == 0.0)
-												{
-													v_position.x = v_position.x + 0.01;
-												} 
+												vec2 m2v;
+												m2v.x = -u_mousePos.x+v_position.x;
+												m2v.y = -u_mousePos.y+v_position.y;
 
-												if(v_position.x < u_mousePos.x)
+												m2v = normalize(m2v);
+												v_position = (m2v*radius) + u_mousePos;
+												
+												v_velocity = a_velocity + 0.01 * (u_acceleration*18.0);
+												v_position = a_position + 0.01 * v_velocity;
+
+												if(distance(u_mousePos, v_position) < radius)
 												{
-													v_velocity.x =  -0.01;
+													v_velocity = vec2(0.0, 0.0);
+													
+
+													vec2 m2v;
+													m2v.x = -u_mousePos.x+v_position.x;
+													m2v.y = -u_mousePos.y+v_position.y;
+
+													m2v = normalize(m2v);
+													v_position = (m2v*radius) + u_mousePos;
 												}
-												else
-												{
-													v_velocity.x = 0.01;
-												}
+
+												
 											}
 											
 										}
