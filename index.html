@@ -86,12 +86,22 @@
 							
 									void main()
 									{
+
+										vec2 wind = vec2(max(min((sin(trunc(u_time*100.0)/7.0)+0.5)*2.0, 2.5), -2.5), 0.0);
 										
 
 										if (a_spawntime == 0.0 || (u_time - a_spawntime > a_lifetime) || a_position.y < -1.0) {
 											// Generate a new particle
-											v_position = vec2(0.0, 1.0);
-											v_velocity = vec2(rand(vec2(a_ID, 0.0)) - 0.5, rand(vec2(a_ID, a_ID)));
+
+											//straight falling rain
+											v_position = vec2((rand(vec2(a_ID, u_time*0.02))-0.5)*6.0, 1.0);
+											v_velocity = vec2(0.0, rand(vec2(a_ID, a_ID)));
+
+											//emmitter type rain
+											//v_position = vec2(0.0, 1.0);
+											//v_velocity = vec2((rand(vec2(a_ID, u_time*0.02)) - 0.5)*1.5, rand(vec2(a_ID, a_ID)));
+
+
 											v_spawntime = u_time;
 											v_lifetime = 10000.0;
 										} else {
@@ -100,7 +110,7 @@
 											
 
 
-											v_velocity = a_velocity + 0.01 * (u_acceleration*1.2);
+											v_velocity = a_velocity + (0.01 * (u_acceleration*1.2)) + 0.01*(wind*1.2);
 											v_position = a_position + 0.01 * v_velocity;
 											v_spawntime = a_spawntime;
 											v_lifetime = a_lifetime;
@@ -119,7 +129,7 @@
 												m2v = normalize(m2v);
 												v_position = (m2v*radius) + u_mousePos;
 												
-												v_velocity = a_velocity + 0.01 * (u_acceleration*18.0);
+												v_velocity = a_velocity + 0.01 * (u_acceleration*18.0) + 0.01*(wind*18.0);
 												v_position = a_position + 0.01 * v_velocity;
 
 												if(distance(u_mousePos, v_position) < radius)
@@ -206,7 +216,7 @@
 							
 									// -- Declare variables for the particle system
 							
-									var NUM_PARTICLES = 1000;
+									var NUM_PARTICLES = 1300;
 									var ACCELERATION = -1.0;
 							
 									var appStartTime = Date.now();
