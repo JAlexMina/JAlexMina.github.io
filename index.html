@@ -94,7 +94,7 @@
 											// Generate a new particle
 
 											//straight falling rain
-											v_position = vec2((rand(vec2(a_ID, u_time*0.02))-0.5)*6.0, 1.0);
+											v_position = vec2((rand(vec2(a_ID, u_time*0.02))-0.5)*2.0, 1.0);
 											v_velocity = vec2(0.0, rand(vec2(a_ID, a_ID)));
 
 											//emmitter type rain
@@ -114,6 +114,20 @@
 											v_position = a_position + 0.01 * v_velocity;
 											v_spawntime = a_spawntime;
 											v_lifetime = a_lifetime;
+
+											//if offscreen wrap around ----------left right
+											if(v_position.x < -1.0)
+											{
+												v_position.x = 1.0;
+											}
+											else if(v_position.x > 1.0)
+											{
+												v_position.x = -1.0;
+											}
+
+
+
+
 
 											float radius = 0.1;
 
