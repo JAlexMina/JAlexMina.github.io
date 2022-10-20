@@ -86,7 +86,7 @@
 							
 									void main()
 									{
-										//vec2 u_mousePos = vec2(0.0, 0.0);
+										
 
 										if (a_spawntime == 0.0 || (u_time - a_spawntime > a_lifetime) || a_position.y < -1.0) {
 											// Generate a new particle
@@ -105,7 +105,7 @@
 											v_spawntime = a_spawntime;
 											v_lifetime = a_lifetime;
 
-											float radius = 0.05;
+											float radius = 0.1;
 
 											if(distance(u_mousePos, v_position) < radius)
 											{
