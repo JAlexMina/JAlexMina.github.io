@@ -86,8 +86,9 @@
 							
 									void main()
 									{
+										
 
-										vec2 wind = vec2(max(min((sin(trunc(u_time*100.0)/7.0)+0.5)*2.0, 2.5), -2.5), 0.0);
+										vec2 wind = vec2(max(min((sin((u_time*100.0)/5.0))*3.0, 1.0), -1.0), 0.0);
 										
 
 										if (a_spawntime == 0.0 || (u_time - a_spawntime > a_lifetime) || a_position.y < -1.0) {
