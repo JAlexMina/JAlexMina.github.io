@@ -86,66 +86,63 @@
 							
 									void main()
 									{
+
+										vec2 wind;
+
+										if(u_time > 2000.0)
+										{
+											wind = vec2(max(min((sin((u_time*100.0)/5.0))*3.0, 1.0), -1.0), 0.0);
 										
-
-										vec2 wind = vec2(max(min((sin((u_time*100.0)/5.0))*3.0, 1.0), -1.0), 0.0);
-										
-
-										if (a_spawntime == 0.0 || (u_time - a_spawntime > a_lifetime) || a_position.y < -1.0) {
-											// Generate a new particle
-
-											//straight falling rain
-											v_position = vec2((rand(vec2(a_ID, u_time*0.02))-0.5)*2.0, 1.0);
-											v_velocity = vec2(0.0, rand(vec2(a_ID, a_ID)));
-
-											//emmitter type rain
-											//v_position = vec2(0.0, 1.0);
-											//v_velocity = vec2((rand(vec2(a_ID, u_time*0.02)) - 0.5)*1.5, rand(vec2(a_ID, a_ID)));
-
-
-											v_spawntime = u_time;
-											v_lifetime = 10000.0;
-										} else {
-
-											
-											
-
-
-											v_velocity = a_velocity + (0.01 * (u_acceleration*1.2)) + 0.01*(wind*1.2);
-											v_position = a_position + 0.01 * v_velocity;
-											v_spawntime = a_spawntime;
-											v_lifetime = a_lifetime;
-
-											//if offscreen wrap around ----------left right
-											if(v_position.x < -1.0)
+											if(u_time < 10000.0)
 											{
-												v_position.x = 1.0;
-											}
-											else if(v_position.x > 1.0)
-											{
-												v_position.x = -1.0;
+												wind = vec2(0.0, 0.0);
 											}
 
 
+											if (a_spawntime == 0.0 || (u_time - a_spawntime > a_lifetime) || a_position.y < -1.0) {
+												// Generate a new particle
+
+												//straight falling rain
+												v_position = vec2((rand(vec2(a_ID, a_position))-0.5)*2.0, 1.0);
+												v_velocity = vec2(0.0, rand(vec2(u_time*0.02, a_ID)));
+
+												//emmitter type rain
+												//v_position = vec2(0.0, 1.0);
+												//v_velocity = vec2((rand(vec2(a_ID, u_time*0.02)) - 0.5)*1.5, rand(vec2(a_ID, a_ID)));
 
 
-
-											float radius = 0.1;
-
-											if(distance(u_mousePos, v_position) < radius)
+												v_spawntime = u_time;
+												v_lifetime = 10000.0;
+											} 
+											else 
 											{
-												v_velocity = vec2(0.0, 0.0);
+
+												
 												
 
-												vec2 m2v;
-												m2v.x = -u_mousePos.x+v_position.x;
-												m2v.y = -u_mousePos.y+v_position.y;
 
-												m2v = normalize(m2v);
-												v_position = (m2v*radius) + u_mousePos;
-												
-												v_velocity = a_velocity + 0.01 * (u_acceleration*18.0) + 0.01*(wind*18.0);
+												v_velocity = a_velocity + (0.01 * (u_acceleration*1.2)) + 0.01*(wind*1.2);
 												v_position = a_position + 0.01 * v_velocity;
+												v_spawntime = a_spawntime;
+												v_lifetime = a_lifetime;
+
+												//if offscreen wrap around ----------left right
+												if(v_position.x < -1.0)
+												{
+													v_position.x = 1.0;
+													v_velocity.x = v_velocity.x * 0.65;
+												}
+												else if(v_position.x > 1.0)
+												{
+													v_position.x = -1.0;
+													v_velocity.x = v_velocity.x * 0.65;
+												}
+
+
+
+
+
+												float radius = 0.1;
 
 												if(distance(u_mousePos, v_position) < radius)
 												{
@@ -158,17 +155,34 @@
 
 													m2v = normalize(m2v);
 													v_position = (m2v*radius) + u_mousePos;
-												}
+													
+													v_velocity = a_velocity + 0.01 * (u_acceleration*18.0) + 0.01*(wind*18.0);
+													v_position = a_position + 0.01 * v_velocity;
 
+													if(distance(u_mousePos, v_position) < radius)
+													{
+														v_velocity = vec2(0.0, 0.0);
+														
+
+														vec2 m2v;
+														m2v.x = -u_mousePos.x+v_position.x;
+														m2v.y = -u_mousePos.y+v_position.y;
+
+														m2v = normalize(m2v);
+														v_position = (m2v*radius) + u_mousePos;
+													}
+
+													
+												}
 												
 											}
-											
+
+
+								
+											gl_Position = vec4(v_position, 0.0, 1.0);
+											gl_PointSize = 2.0;
+
 										}
-
-
-							
-										gl_Position = vec4(v_position, 0.0, 1.0);
-										gl_PointSize = 2.0;
 									}
 								</script>
 							
