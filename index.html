@@ -24,11 +24,11 @@
 									<a href="#menu" class="menuToggle"><span>Menu</span></a>
 									<div id="menu">
 										<ul>
-											<li><a href="index.html">Home</a></li>
-											<li><a href="about.html">About</a></li>
-											<li><a href="2D_game.html">2D Game Engine</a></li>
-											<li><a href="Portal Project.html">Portal Project</a></li>
-											<li><a href="Path Tracer.html">Path Tracer</a></li>
+											<li><a href="#banner" class="more scrolly">Home</a></li>
+											<li><a href="about.html" class="more scrolly">About</a></li>
+											<li><a href="#two" class="more scrolly">2D Game Engine</a></li>
+											<li><a href="#three" class="more scrolly">Portal Project</a></li>
+											<li><a href="#four" class="more scrolly">Path Tracer</a></li>
 										</ul>
 									</div>
 								</li>
@@ -89,30 +89,37 @@
 
 										vec2 wind;
 
-										if(u_time > 2000.0)
+										if(u_time > 0.0)
 										{
 											wind = vec2(max(min((sin((u_time*100.0)/5.0))*3.0, 1.0), -1.0), 0.0);
 										
-											if(u_time < 10000.0)
+											if(u_time < 5500.0)
 											{
 												wind = vec2(0.0, 0.0);
 											}
 
+											
 
-											if (a_spawntime == 0.0 || (u_time - a_spawntime > a_lifetime) || a_position.y < -1.0) {
+
+											if (a_spawntime == 0.0 || a_position.y < -1.0) {
 												// Generate a new particle
 
 												//straight falling rain
-												v_position = vec2((rand(vec2(a_ID, a_position))-0.5)*2.0, 1.0);
-												v_velocity = vec2(0.0, rand(vec2(u_time*0.02, a_ID)));
-
-												//emmitter type rain
-												//v_position = vec2(0.0, 1.0);
-												//v_velocity = vec2((rand(vec2(a_ID, u_time*0.02)) - 0.5)*1.5, rand(vec2(a_ID, a_ID)));
+												if(u_time < 100.0)
+												{
+													v_position = vec2((rand(vec2(a_ID, a_position))-0.5)*2.0, (rand(vec2(a_ID, u_time))-0.5));
+												}
+												else
+												{
+													v_position = vec2((rand(vec2(a_ID, a_position))-0.5)*2.0, 1.0);
+												}
+												
+												v_velocity = vec2(0.0, rand(vec2(u_time*0.02, a_ID)))*1.5;
 
 
 												v_spawntime = u_time;
-												v_lifetime = 10000.0;
+						
+
 											} 
 											else 
 											{
@@ -484,7 +491,7 @@
 						<div class="inner">
 							<header class="major">
 								<h2>This is my portfolio as a <br/>computer graphics software engineer</h2>
-								<p>I have 5+ years working with multiple langueges on lots of diffent types of projects. <br/> Below are some that I am particularly proud of!</p>
+								<p>I have 5+ years working with multiple languages on lots of diffent types of projects. <br/> Below are some that I am particularly proud of!</p>
 							</header>
 							<ul class="icons major">
 								<li><img src="images/c++.png" class="label" style="width:48px;"></li>
@@ -502,22 +509,27 @@
 					<section class="spotlight">
 							<div class="image"><img src="images/pic01.jpg" alt="" /></div><div class="content">
 								<h2>2D Game Engine</h2>
-								<p>This is where my 2d game engine will go *small blurb*</p>
-								<a href="2D_game.html" class="button Default">More about this project here</a>
+								<p>My 2D game engine was written for a class and focuses on a 
+								   lighting system that has attenuation and shadows all in a 2D format!</p>
+								<a href="https://github.com/JAlexMina/2dGameEngine" class="button Default">Project Github Repository</a>
 							</div>
 						</section>
-						<section class="spotlight">
+						<section id="three" class="spotlight">
 							<div class="image"><img src="images/pic02.jpg" alt="" /></div><div class="content">
 								<h2>Portal 3D Game Engine</h2>
-								<p>this is where my portal project will go *small blurb*</p>
-								<a href="Portal Project.html" class="button Default">More about this project here</a>
+								<p>For my 3D game engine, I wrote all the physics and 
+								   systems that a basic game engine should have as well as a final project where 
+								   I implemented Valve's portal effect from the game Portal!</p>
+								<a href="https://github.com/JAlexMina/Portal-Game-Engine" class="button Default">Project Github Repository</a>
 							</div>
 						</section>
-						<section class="spotlight">
+						<section id="four" class="spotlight">
 							<div class="image"><img src="images/pic03.jpg" alt="" /></div><div class="content">
 								<h2>Path Tracer</h2>
-								<p>This is where my path tracer project will go *small blurb*</p>
-								<a href="Path Tracer.html" class="button Default">More about this project here</a>
+								<p>For my Advanced Computer Graphics course I implemented the path tracing algorithm 
+								   in c++ and can get incredibly photorealistic outputs from this 
+								   offline rendering technique!</p>
+								<a href="https://github.com/JAlexMina/path-tracer" class="button Default">Project Github Repository</a>
 							</div>
 						</section>
 					</section>
@@ -549,3 +561,5 @@
 
 	</body>
 </html>
+
+
