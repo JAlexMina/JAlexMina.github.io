@@ -2673,12 +2673,16 @@ input, select, textarea {
 			-ms-order: 1;
 			order: 1;
 			border-radius: 0;
-			width: 40%;
+			/*width: 40%;*/
+			width: 700px;
+			height:auto;
+			/*width:auto;*/
 		}
 
 			.spotlight .image img {
 				border-radius: 0;
-				width: 100%;
+				width: 700px;
+				height: auto;
 			}
 
 		.spotlight .content {
@@ -2687,8 +2691,11 @@ input, select, textarea {
 			-webkit-order: 2;
 			-ms-order: 2;
 			order: 2;
-			max-width: 48em;
-			width: 60%;
+			/*max-width: 48em;*/
+			/*width: 60%;*/
+			width: calc(100% - 700px);
+			/*height:auto;*/
+			/*width:auto;*/
 		}
 
 		.spotlight:nth-child(2n) {
@@ -2741,16 +2748,23 @@ input, select, textarea {
 		@media screen and (max-width: 1280px) {
 
 			.spotlight .image {
-				width: 45%;
+				width: 500px;
+				height:auto;
+			}
+			
+			.spotlight .image img {
+				border-radius: 0;
+				width: 500px;
+				height: auto;
 			}
 
 			.spotlight .content {
-				width: 55%;
+				width: calc(100% - 500px);
 			}
 
 		}
 
-		@media screen and (max-width: 980px) {
+		@media screen and (max-width: 1000px) {
 
 			.spotlight {
 				display: block;
@@ -2762,6 +2776,12 @@ input, select, textarea {
 
 				.spotlight .image {
 					width: 100%;
+					height: auto;
+				}
+				.spotlight .image img {
+				border-radius: 0;
+				width: 100%;
+				height: auto;
 				}
 
 				.spotlight .content {
@@ -3704,8 +3724,8 @@ input, select, textarea {
 
 			#banner {
 				padding: 7em 3em 5em 3em ;
-				height: auto;
-				min-height: 0;
+				/*height: auto;
+				min-height: 0;*/
 			}
 
 				#banner h2 {
@@ -3717,7 +3737,7 @@ input, select, textarea {
 				}
 
 				#banner .more {
-					display: none;
+					/*display: none;*/
 				}
 
 		}
