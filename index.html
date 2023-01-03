@@ -124,13 +124,15 @@
 												//first spawns are at a random height
 												if(u_time < 100.0)
 												{
-													v_position = vec3((rand(vec2(a_ID, a_position.xy))-0.5)*2.0, (rand(vec2(a_ID, u_time))-0.5), 2.5);												
+													v_position = vec3((rand(vec2(a_ID, a_position.xy))-0.5)*2.0, (rand(vec2(a_ID, u_time))-0.5), rand(vec2(a_ID, u_time))*2.5);												
 												}
 												//the rest are at the top of the screen
 												else
 												{
-													v_position = vec3((rand(vec2(a_ID, a_position.xy))-0.5)*2.0, 1.0, 2.5);
+													v_position = vec3((rand(vec2(a_ID, a_position.xy))-0.5)*2.0, 1.0, rand(vec2(a_ID, u_time))*2.5);
 												}
+
+												v_lifetime = v_position.z;
 												
 												v_velocity = vec2(0.0, rand(vec2(u_time*0.02, a_ID)))*1.5;
 
@@ -148,7 +150,7 @@
 												v_position = vec3((a_position.xy + 0.01 * v_velocity).x, (a_position.xy + 0.01 * v_velocity).y, v_position.z);
 												v_spawntime = a_spawntime;
 
-												//v_lifetime = a_lifetime;
+												v_lifetime = a_lifetime;
 
 												//if offscreen wrap around ----------left right
 												//if(v_position.x < -1.0)
@@ -201,7 +203,7 @@
 												
 											}
 											
-											gl_PointSize = v_position.z;
+											gl_PointSize = v_lifetime;
 
 											//if(gl_PointSize < 1.0) 
 											//{
