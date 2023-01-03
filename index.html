@@ -91,28 +91,28 @@
 									{
 										float z;
 
-										//vec2 wind;
+										vec2 wind;
 
 										if(u_time > 0.0)
 										{
-											//float tt = u_time*100.0;
+											float tt = u_time*100.0;
 											
-											//float a = 1.4;
-											//float b = -1.5;
-											//float c = 1.5;
-											//float d = 1.2;
-											//float f = -0.6;
-											//float stretch = 0.2;
+											float a = 1.4;
+											float b = -1.5;
+											float c = 1.5;
+											float d = 1.2;
+											float f = -0.6;
+											float stretch = 0.2;
 											
-											//float sn = sin(stretch*b*tt);
-											//float cs = cos(stretch*d*tt);
-											//float funcWithoutCut = a*(sn+c*(cs))+f;
-											//wind = vec2(max(min(funcWithoutCut, 0.8), -0.8), 0.0);
+											float sn = sin(stretch*b*tt);
+											float cs = cos(stretch*d*tt);
+											float funcWithoutCut = a*(sn+c*(cs))+f;
+											wind = vec2(max(min(funcWithoutCut, 0.8), -0.8), 0.0);
 										
-											//if(u_time < 5500.0)
-											//{
-											//	wind = vec2(0.0, 0.0);
-											//}
+											if(u_time < 5500.0)
+											{
+												wind = vec2(0.0, 0.0);
+											}
 
 											
 
@@ -124,15 +124,17 @@
 												//first spawns are at a random height
 												if(u_time < 100.0)
 												{
-													v_position = vec3((rand(vec2(a_ID, a_position.xy))-0.5)*2.0, (rand(vec2(a_ID, u_time))-0.5), rand(vec2(a_ID, u_time))*2.5);												
+													v_position = vec3((rand(vec2(a_ID, a_position.xy))-0.5)*2.0, (rand(vec2(a_ID, u_time))-0.5), rand(vec2(a_ID, u_time))*3.0);												
 												}
 												//the rest are at the top of the screen
 												else
 												{
-													v_position = vec3((rand(vec2(a_ID, a_position.xy))-0.5)*2.0, 1.0, rand(vec2(a_ID, u_time))*2.5);
+													v_position = vec3((rand(vec2(a_ID, a_position.xy))-0.5)*2.0, 1.0, rand(vec2(a_ID, u_time))*3.0);
 												}
 
+												//********I am using the v_lifetime variable as the position Z value as it doesnt like me using the actual Z value for some reason********
 												v_lifetime = v_position.z;
+												//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 												
 												v_velocity = vec2(0.0, rand(vec2(u_time*0.02, a_ID)))*1.5;
 
@@ -144,77 +146,70 @@
 											{
 
 
-												//v_velocity = a_velocity + (0.01 * (u_acceleration*1.2)) + 0.01*(wind*1.2);
+												v_velocity = a_velocity + (0.01 * (u_acceleration*1.2)) + 0.01*(wind*1.2);
 
-												v_velocity = a_velocity + (0.01 * (u_acceleration*1.2));
+												//v_velocity = a_velocity + (0.01 * (u_acceleration*1.2));
 												v_position = vec3((a_position.xy + 0.01 * v_velocity).x, (a_position.xy + 0.01 * v_velocity).y, v_position.z);
 												v_spawntime = a_spawntime;
 
+												//********I am using the v_lifetime variable as the position Z value as it doesnt like me using the actual Z value for some reason********
 												v_lifetime = a_lifetime;
+												//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 												//if offscreen wrap around ----------left right
-												//if(v_position.x < -1.0)
-												//{
-												//	v_position.x = 1.0;
-												//	v_velocity.x = v_velocity.x * 0.65;
-												//}
-												//else if(v_position.x > 1.0)
-												//{
-												//	v_position.x = -1.0;
-												//	v_velocity.x = v_velocity.x * 0.65;
-												//}
+												if(v_position.x < -1.0)
+												{
+													v_position.x = 1.0;
+													v_velocity.x = v_velocity.x * 0.65;
+												}
+												else if(v_position.x > 1.0)
+												{
+													v_position.x = -1.0;
+													v_velocity.x = v_velocity.x * 0.65;
+												}
 
 
 
 
 
-												//float radius = 0.1;
+												float radius = 0.1;
 
-												//if(distance(u_mousePos, v_position.xy) < radius)
-												//{
-												//	v_velocity = vec2(0.0, 0.0);
+												if(distance(u_mousePos, v_position.xy) < radius)
+												{
+													v_velocity = vec2(0.0, 0.0);
 													
 
-												//	vec2 m2v;
-												//	m2v.x = -u_mousePos.x+v_position.x;
-												//	m2v.y = -u_mousePos.y+v_position.y;
+													vec2 m2v;
+													m2v.x = -u_mousePos.x+v_position.x;
+													m2v.y = -u_mousePos.y+v_position.y;
 
-												//	m2v = normalize(m2v);
-												//	v_position = vec3((m2v*radius) + u_mousePos, v_position.z);
+													m2v = normalize(m2v);
+													v_position = vec3((m2v*radius) + u_mousePos, v_position.z);
 													
-												//	v_velocity = a_velocity + 0.01 * (u_acceleration*18.0) + 0.01*(wind*18.0);
-												//	v_position = vec3(a_position.xy + 0.01 * v_velocity, v_position.z);
+													v_velocity = a_velocity + 0.01 * (u_acceleration*18.0) + 0.01*(wind*18.0);
+													v_position = vec3(a_position.xy + 0.01 * v_velocity, v_position.z);
 
-												//	if(distance(u_mousePos, v_position.xy) < radius)
-												//	{
-												//		v_velocity = vec2(0.0, 0.0);
+													if(distance(u_mousePos, v_position.xy) < radius)
+													{
+														v_velocity = vec2(0.0, 0.0);
 														
 
-												//		vec2 m2v;
-												//		m2v.x = -u_mousePos.x+v_position.x;
-												//		m2v.y = -u_mousePos.y+v_position.y;
-												//
-												//		m2v = normalize(m2v);
-												//		v_position = vec3((m2v*radius) + u_mousePos, v_position.z);
-												//	}
-												//
-												//	
-												//}
+														vec2 m2v;
+														m2v.x = -u_mousePos.x+v_position.x;
+														m2v.y = -u_mousePos.y+v_position.y;
+												
+														m2v = normalize(m2v);
+														v_position = vec3((m2v*radius) + u_mousePos, v_position.z);
+													}
+												
+													
+												}
 												
 											}
 											
+											//********I am using the v_lifetime variable as the position Z value as it doesnt like me using the actual Z value for some reason********
 											gl_PointSize = v_lifetime;
-
-											//if(gl_PointSize < 1.0) 
-											//{
-											//	gl_PointSize = 1.0;
-											//} 
-											//if(gl_PointSize > 2.5)
-											//{
-											//	gl_PointSize = 2.5;
-											//}
-
-
+											//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 											gl_Position = vec4(v_position.x, v_position.y, v_position.z, 1.0);
 										}
@@ -280,7 +275,7 @@
 							
 									// -- Declare variables for the particle system
 							
-									var NUM_PARTICLES = 1300;
+									var NUM_PARTICLES = 1800;
 									var ACCELERATION = -1.0;
 							
 									var appStartTime = Date.now();
