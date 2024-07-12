@@ -46,7 +46,7 @@
 								<h2>J. Alex Mina</h2>
 								<p>Portfolio</p>															
 							</div>
-
+							<div style="position:absolute; top: 2% !important; left: 2%" >fps: <span id="fps"></span></div>
 							<div style="position:absolute; top:0; left:0; ">
 								<canvas id="canvas" width="1920" height="1080"></canvas>  <!---------------------------------------------- -->
 
@@ -230,10 +230,13 @@
 										color = u_color;
 									}
 								</script>
-							
+								
 								<script>
+								
 								(function () {
 									'use strict';
+
+									
 
 
 									// Clamp number between two values with the following line:
@@ -427,9 +430,19 @@
 									
 									gl.enable(gl.BLEND);
 									gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-							
-									function render() { 
+									
+									const fpsElem = document.querySelector("#fps");
+									let then = 0;
+									function render(now) { 
 										
+
+										now *= 0.001;                          // convert to seconds
+										const deltaTime = now - then;          // compute time since last frame
+										then = now;                            // remember time for next frame
+										const fps = 1 / deltaTime;             // compute frames per second
+										fpsElem.textContent = fps.toFixed(1);  // update fps display
+
+
 										var time = Date.now() - appStartTime;
 										var destinationIdx = (currentSourceIdx + 1) % 2;
 							
