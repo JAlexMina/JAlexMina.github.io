@@ -1,0 +1,468 @@
+<!DOCTYPE HTML>
+<html>
+	<link rel="icon" href="images/favicon_io/favicon.ico">
+	<head>
+		<title>J. Alex Mina Portfolio</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+		<script src="utility.js"></script>
+    	<script src="gl-matrix-min.js"></script>
+   		<script src="noise3D.js"></script>
+	</head>
+
+	<body class="landing is-preload">
+		<!-- Page Wrapper -->
+			<div id="page-wrapper">
+				<!-- Banner -->
+					<section id="banner">
+						<div id="container123">
+
+							<div style="position:absolute; top: 25% !important; left: 50%; transform: translate(-50%, -50%);" >
+								<h2>J. Alex Mina</h2>														
+							</div>
+ 
+							<div style="position:absolute; top: 15% !important; left: 3%" width="20" height="50"">									
+								<!-- <img src="images/back.png" class="label" style="width:65px;"> -->
+								<a href="index.html" class="more scrolly" style="rotate: 90deg;"></a>								
+							</div>						
+							
+							<div style="position:absolute; top:0; left:0; ">
+								<canvas id="glCanvas" width="1920" height="1080"></canvas>  <!---------------------------------------------- -->
+                                <input type="range" id="particleSlider" min="1000" max="50000" step="1000" value="10000">
+                                <label for="particleSlider" style="position: relative; z-index: 10; margin-top: 20px;">Number of Particles</label>
+
+                            <script>
+                                const canvas = document.getElementById("glCanvas");
+                                const gl = canvas.getContext("webgl2");
+
+                                const particleSlider = document.getElementById("particleSlider");
+
+                                let numParticles_slider = parseInt(particleSlider.value);
+
+                                if (!gl) {
+                                    alert("WebGL2 is not supported.");
+                                    throw new Error("WebGL2 not supported.");
+                                }
+
+                                if (!gl.getExtension("OES_texture_float")) {
+                                    console.error("FLOAT textures not supported!");
+                                }
+
+                                canvas.width = window.innerWidth;
+                                canvas.height = window.innerHeight;
+                                gl.viewport(0, 0, canvas.width, canvas.height);
+
+                                const NUM_PARTICLES = 15000;  // Increased number of particles for smoother results
+
+                                const vsTransform = `#version 300 es
+                                precision highp float;
+                                layout(location = 0) in vec2 position;
+                                layout(location = 1) in vec2 velocity;
+
+                                out vec2 newPosition;
+                                out vec2 newVelocity;
+
+                                uniform float deltaTime;
+                                uniform vec2 uMouse;
+                                uniform bool uMouseDown;
+                                uniform vec2 gravity;  // Gravity force
+                                uniform sampler2D u_particleTexture;
+
+                                float damping = 0.05; //Damping coefficient
+                                float dampingB = 0.001; //Damping boundary coefficient
+                                float particleRepulsionFactor = 1.5;
+                                const int NUM_PARTICLES = 15000;  // Number of particles
+                                float viscosity = 0.30;  // Adjust for stronger/weaker viscosity [0.0 -> 1.0]
+
+                                void main() {
+                                    
+
+                                    vec2 direction = uMouse - position;
+                                    float distance = length(direction);
+                                    vec2 force = vec2(0.0);
+
+                                    // Mouse interaction
+                                    if (uMouseDown && distance < 0.3) {
+                                        force = normalize(direction) * (0.005 / distance);
+                                    }
+                                        
+
+                                    // Apply gravity
+                                    newVelocity = velocity + force + gravity * deltaTime;
+
+                                    newVelocity *= 0.95; // Reduce velocity by 1% each frame
+                                    
+                                    newPosition = position + newVelocity * deltaTime;
+
+                                    vec2 velocityDiffusion = vec2(0.0);
+                                    int neighborCount = 0;
+
+                                    // Particle repulsion between particles
+                                    for (int i = 0; i < NUM_PARTICLES; i++) {
+                                        if (i != gl_VertexID) { // Avoid self-interaction
+                                            // Calculate the x coordinate in the texture based on particle index 'i'
+                                            float x = (float(i) + 0.5) / float(NUM_PARTICLES);
+                                            vec2 otherPosition = texture(u_particleTexture, vec2(x, 0.5)).xy;
+                                            vec2 otherVelocity = texture(u_particleTexture, vec2(x, 0.5)).zw;
+
+                                            vec2 repulsion = position - otherPosition;   // Direction from other particle
+                                            float dist = length(repulsion);               // Calculate distance
+                                            float threshold = 0.04;                        // Repulsion threshold
+                                            float minDist = 0.01;                         // Prevent division by zero
+                                            
+                                            
+                                            float viscosityThreshold = 0.01;
+
+                                            if (dist <= viscosityThreshold) {
+                                                velocityDiffusion += otherVelocity;
+                                                neighborCount++;
+                                            }
+
+                                            vec2 repulseDirection = normalize(repulsion);
+
+                                            // Apply repulsion only when particles are close enough
+                                            if (dist <= threshold) {
+
+
+                                                float curveHeight = 1.0;
+                                                float curveWidth = 15.0;
+                                                float e = 2.71828182;
+                                                float PI = 3.14159265;
+
+                                                //bell curve for repulsion
+                                                float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI + curveHeight)*pow(e, -(pow(dist, 2.0)) / pow((2.0*curveWidth), 2.0)));
+                                              
+
+                                                vec2 force = repulseDirection * -forceMagnitude;  // Direction and magnitude of repulsion
+                                                newVelocity -= force* damping;  // Apply repulsion to the particle's velocity                                                     
+                                            }                                            
+                                        }
+                                    }
+
+                                if (neighborCount > 0) {
+                                        velocityDiffusion /= float(neighborCount);
+                                        newVelocity = mix(velocityDiffusion, newVelocity, viscosity);
+                                    }
+
+                                    float curveHeightB = 0.0;
+                                    float curveWidthB = 0.01;
+                                    float e_B = 2.71828182;
+                                    float PI_B = 3.14159265;
+
+                                    //bell curve for repulsion
+                                            
+
+                                    // Boundary checks and elastic collision with damping
+                                    if (newPosition.x > 0.6) {
+                                        float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI_B + curveHeightB)*pow(e_B, -(pow(0.6 - newPosition.x, 2.0)) / pow((2.0*curveWidthB), 2.0))); 
+                                        vec2 force = vec2(-1.0, 0.0) * -forceMagnitude;  // Direction and magnitude of repulsion
+                                        newVelocity -= force* dampingB;  // Apply repulsion to the particle's velocity
+                                    } else if (newPosition.x < -0.6) {
+                                        float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI_B + curveHeightB)*pow(e_B, -(pow(-0.6 - newPosition.x, 2.0)) / pow((2.0*curveWidthB), 2.0))); 
+                                        vec2 force = vec2(1.0, 0.0) * -forceMagnitude;  // Direction and magnitude of repulsion
+                                        newVelocity -= force* dampingB;  // Apply repulsion to the particle's velocity
+                                    }
+
+                                    if (newPosition.y > 0.6) {
+                                        float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI_B + curveHeightB)*pow(e_B, -(pow(0.6 - newPosition.y, 2.0)) / pow((2.0*curveWidthB), 2.0))); 
+                                        vec2 force = vec2(0.0, -1.0) * -forceMagnitude;  // Direction and magnitude of repulsion
+                                        newVelocity -= force* dampingB;  // Apply repulsion to the particle's velocity
+                                    } else if (newPosition.y < -0.6) {
+                                        float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI_B + curveHeightB)*pow(e_B, -(pow(-0.6 - newPosition.y, 2.0)) / pow((2.0*curveWidthB), 2.0))); 
+                                        vec2 force = vec2(0.0, 1.0) * -forceMagnitude;  // Direction and magnitude of repulsion
+                                        newVelocity -= force* dampingB;  // Apply repulsion to the particle's velocity
+                                    }                                    
+
+                                    // Apply damping to reduce energy over time
+                                    // Applied small damping to prevent excessive oscillation
+                                    //newVelocity = newVelocity * damping;
+                                    newVelocity = clamp(newVelocity, vec2(-0.5), vec2(0.5)); // Example clamping range
+                                }
+                                `;
+
+                                const fsTransform = `#version 300 es
+                                precision highp float;
+                                void main() { discard; }`;
+
+                                const vsRender = `#version 300 es
+                                precision highp float;
+                                layout(location = 0) in vec2 position;
+                                layout(location = 1) in vec2 a_velocity;
+                                out float v_speed;
+                                void main() {
+                                    gl_PointSize = 5.0;  // Increased particle size
+                                    gl_Position = vec4(position, 0.0, 1.0);
+                                    v_speed = length(a_velocity) * 2.0; // Adjust scaling factor
+                                }`;
+
+                                const fsRender = `#version 300 es
+                                precision highp float;
+                                in float v_speed;
+                                out vec4 fragColor;
+                                void main() {
+                                    float speedNormalized = clamp(v_speed, 0.0, 1.0);
+
+                                    vec2 coord = gl_PointCoord - vec2(0.5); 
+                                    if (length(coord) > 0.5) discard;
+                                                                
+                                    // Interpolating from dark blue to light blue
+                                    vec3 red = vec3(1.0, 0.2, 0.2);  
+                                    vec3 lightBlue = vec3(0.6, 0.8, 1.0);
+
+                                    vec3 color = mix(lightBlue, red, speedNormalized);
+                                    fragColor = vec4(color, 1.0);
+                                }`;
+
+                                function createShader(type, source) {
+                                    const shader = gl.createShader(type);
+                                    gl.shaderSource(shader, source);
+                                    gl.compileShader(shader);
+                                    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                                        console.error(gl.getShaderInfoLog(shader));
+                                        gl.deleteShader(shader);
+                                        return null;
+                                    }
+                                    return shader;
+                                }
+
+                                function createProgram(vsSource, fsSource, transformFeedbackVaryings = null) {
+                                    const vs = createShader(gl.VERTEX_SHADER, vsSource);
+                                    const fs = createShader(gl.FRAGMENT_SHADER, fsSource);
+                                    const program = gl.createProgram();
+
+                                    gl.attachShader(program, vs);
+                                    gl.attachShader(program, fs);
+
+                                    if (transformFeedbackVaryings) {
+                                        gl.transformFeedbackVaryings(program, transformFeedbackVaryings, gl.SEPARATE_ATTRIBS);
+                                    }
+
+                                    gl.linkProgram(program);
+                                    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                                        console.error(gl.getProgramInfoLog(program));
+                                        return null;
+                                    }
+                                    return program;
+                                }
+
+                                const transformProgram = createProgram(vsTransform, fsTransform, ["newPosition", "newVelocity"]);
+                                const renderProgram = createProgram(vsRender, fsRender);
+
+                                const positionBuffers = [gl.createBuffer(), gl.createBuffer()];
+                                const velocityBuffers = [gl.createBuffer(), gl.createBuffer()];
+
+                                particles = new Float32Array(NUM_PARTICLES * 4);
+                                
+                                
+                                const lowerBound = -0.6; // Lower bound for x and y
+                                const upperBound = 0.6;  // Upper bound for x and y
+
+                                const rows = Math.floor(Math.sqrt(NUM_PARTICLES));  // Number of rows
+                                const cols = Math.floor(NUM_PARTICLES / rows);     // Number of columns
+                                const spacing = (upperBound - lowerBound) / Math.max(rows, cols);  // Even spacing within bounds
+
+                                for (let i = 0; i < NUM_PARTICLES; i++) {
+                                    const row = Math.floor(i / cols);  // Row index
+                                    const col = i % cols;              // Column index
+
+                                    // Evenly space particles within [-0.6, 0.6] range for both axes
+                                    const x = col * spacing + lowerBound + spacing / 2.0;
+                                    const y = row * spacing + lowerBound + spacing / 2.0;
+
+                                    // Assign velocity (small random value to start)
+                                    const vx = (Math.random() * 2 - 1) * 0.0001;
+                                    const vy = (Math.random() * 2 - 1) * 0.0001;
+
+                                    // Store particle position and velocity
+                                    particles[i * 4] = x;
+                                    particles[i * 4 + 1] = y;
+                                    particles[i * 4 + 2] = vx;
+                                    particles[i * 4 + 3] = vy;
+                                }
+
+                                for (let i = 0; i < 2; ++i) {
+                                    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffers[i]);
+                                    gl.bufferData(gl.ARRAY_BUFFER, particles.subarray(0, NUM_PARTICLES * 2), gl.DYNAMIC_COPY);
+                                    gl.bindBuffer(gl.ARRAY_BUFFER, velocityBuffers[i]);
+                                    gl.bufferData(gl.ARRAY_BUFFER, particles.subarray(NUM_PARTICLES * 2), gl.DYNAMIC_COPY);
+                                }
+
+                                const vaos = [gl.createVertexArray(), gl.createVertexArray()];
+                                vaos.forEach((vao, i) => {
+                                    gl.bindVertexArray(vao);
+                                    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffers[i]);
+                                    gl.enableVertexAttribArray(0);
+                                    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+                                    gl.bindBuffer(gl.ARRAY_BUFFER, velocityBuffers[i]);
+                                    gl.enableVertexAttribArray(1);
+                                    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
+                                });
+
+                                const transformFeedback = gl.createTransformFeedback();
+                                let readBufferIndex = 0;
+                                let writeBufferIndex = 1;
+
+                                let mouseX = 0, mouseY = 0, mouseDown = false;
+
+                                canvas.addEventListener("mousemove", (event) => {
+                                    const rect = canvas.getBoundingClientRect();
+                                    mouseX = ((event.clientX - rect.left) / canvas.width) * 2 - 1;
+                                    mouseY = ((event.clientY - rect.top) / canvas.height) * -2 + 1;
+                                });
+
+                                canvas.addEventListener("mousedown", () => { mouseDown = true; });
+                                canvas.addEventListener("mouseup", () => { mouseDown = false; });
+
+                                const mousePosLoc = gl.getUniformLocation(transformProgram, "uMouse");
+                                const mouseDownLoc = gl.getUniformLocation(transformProgram, "uMouseDown");
+                                const deltaTimeLoc = gl.getUniformLocation(transformProgram, "deltaTime");
+                                const gravityLoc = gl.getUniformLocation(transformProgram, "gravity");
+                                const velocityLoc = gl.getAttribLocation(renderProgram, "a_velocity");
+
+                                const uParticleTextureLocation = gl.getUniformLocation(transformProgram, "u_particleTexture");
+                                const uParticleIndexLocation = gl.getUniformLocation(transformProgram, "u_particleIndex");
+
+                                function updateParticles() {
+                                    const texture = gl.createTexture();
+                                    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+                                    //console.log(particles);
+
+                                    gl.texImage2D(
+                                        gl.TEXTURE_2D, 
+                                        0, 
+                                        gl.RGBA32F,  
+                                        NUM_PARTICLES, 
+                                        1,
+                                        0, 
+                                        gl.RGBA, 
+                                        gl.FLOAT,  
+                                        particles
+                                    );
+
+                                    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffers[readBufferIndex]);
+                                    gl.bindBuffer(gl.ARRAY_BUFFER, velocityBuffers[readBufferIndex]);
+
+                                    gl.useProgram(transformProgram);
+
+                                    gl.uniform2f(mousePosLoc, mouseX, mouseY);
+                                    gl.uniform1i(mouseDownLoc, mouseDown ? 1 : 0);
+                                    gl.uniform1f(deltaTimeLoc, 0.016);
+
+                                    //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                                    //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                                    gl.activeTexture(gl.TEXTURE0);
+                                    gl.bindTexture(gl.TEXTURE_2D, texture);
+                                    gl.uniform1i(uParticleTextureLocation, 0);
+
+                                    gl.uniform1f(uParticleIndexLocation, 0.0);
+
+                                    gl.uniform2f(gravityLoc, 0.0, -1.0);  // Adjusted gravity
+
+                                    gl.bindVertexArray(vaos[readBufferIndex]);
+                                    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
+                                    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, positionBuffers[writeBufferIndex]);
+                                    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, velocityBuffers[writeBufferIndex]);
+
+                                    gl.enable(gl.RASTERIZER_DISCARD);
+                                    gl.beginTransformFeedback(gl.POINTS);
+                                    gl.drawArrays(gl.POINTS, 0, NUM_PARTICLES);
+                                    gl.endTransformFeedback();
+                                    gl.disable(gl.RASTERIZER_DISCARD);
+
+                                    const positions = new Float32Array(NUM_PARTICLES * 2); // 2 for x and y position
+                                    const velocities = new Float32Array(NUM_PARTICLES * 2); // 2 for x and y position
+                                    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffers[readBufferIndex]);
+                                    gl.getBufferSubData(gl.ARRAY_BUFFER, 0, positions);
+
+                                    gl.bindBuffer(gl.ARRAY_BUFFER, velocityBuffers[readBufferIndex]);
+                                    gl.getBufferSubData(gl.ARRAY_BUFFER, 0, velocities);
+
+                                    // Repack particles array for texture upload
+                                    for (let i = 0; i < NUM_PARTICLES; i++) {
+                                        particles[i * 4] = positions[i * 2];       // X position
+                                        particles[i * 4 + 1] = positions[i * 2 + 1];   // Y position
+                                        particles[i * 4 + 2] = velocities[i * 2];      // X velocity
+                                        particles[i * 4 + 3] = velocities[i * 2 + 1];  // Y velocity
+                                    }
+
+                                    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+                                    //console.log(particles);
+                                    
+                                    gl.texSubImage2D(
+                                        gl.TEXTURE_2D, 
+                                        0, 
+                                        0, 
+                                        0, 
+                                        NUM_PARTICLES, 
+                                        1, 
+                                        gl.RGBA, 
+                                        gl.FLOAT, 
+                                        particles // Updated particle positions
+                                    );
+
+                                    gl.finish();                                    
+                                    
+                                    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+
+                                    [readBufferIndex, writeBufferIndex] = [writeBufferIndex, readBufferIndex];
+                                }
+
+                                function renderParticles() {
+                                    gl.clear(gl.COLOR_BUFFER_BIT);
+                                    gl.useProgram(renderProgram);
+                                    gl.bindVertexArray(vaos[readBufferIndex]);
+                                    gl.enableVertexAttribArray(0);
+                                    gl.enableVertexAttribArray(1);
+                                    gl.drawArrays(gl.POINTS, 0, NUM_PARTICLES);
+                                }
+
+                                function animate() {
+                                    updateParticles();
+                                    renderParticles();
+                                    requestAnimationFrame(animate);
+                                }
+
+                                gl.clearColor(0, 0, 0, 1);
+                                animate();
+
+                                particleSlider.addEventListener("input", (event) => {
+                                    numParticles_slider = parseInt(event.target.value);
+                                    //generateParticles(numParticles);
+                                    //gl.uniform1f(uNumParticlesLocation, numParticles);
+                                });
+                            </script>
+							</div>
+						</div>						
+					</section>
+				<!-- Footer -->
+					<footer id="footer">
+						<ul class="icons">
+							<li><a title="Facebook" href="https://www.facebook.com/alex0k1" class="icon brands fa-facebook-f"><span class="label">Facebook</span></a></li>
+							<li><a title="Instagram" href="https://www.instagram.com/alex0k12/" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
+							<li><a title="Linkedin" href="https://www.linkedin.com/in/jalexmina/" class="icon brands fa-linkedin"><span class="label">Linkedin</span></a></li>
+							<li><a title="Email" href="mailto:juanmina1200@gmail.com" class="icon solid fa-envelope"><span class="label">Email</span></a></li>
+							<li><a title="Resume" href="assets/Alex-Resume.pdf" class="icon solid fa-receipt"><span class="label">Resume</span></a></li>
+						</ul>	
+					</footer>
+			</div>
+
+		<!-- Scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/jquery.scrollex.min.js"></script>
+			<script src="assets/js/jquery.scrolly.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+
+	</body>
+</html>

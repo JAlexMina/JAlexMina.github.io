@@ -1,0 +1,403 @@
+<!DOCTYPE HTML>
+<html>
+	<link rel="icon" href="images/favicon_io/favicon.ico">
+	<head>
+		<title>J. Alex Mina Portfolio</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+		<script src="utility.js"></script>
+    	<script src="gl-matrix-min.js"></script>
+   		<script src="noise3D.js"></script>
+	</head>
+
+
+
+	<body class="landing is-preload">
+
+		<!-- Page Wrapper -->
+			<div id="page-wrapper">
+
+
+
+				<!-- Banner -->
+					<section id="banner">
+						<div id="container123">
+
+							<div style="position:absolute; top: 25% !important; left: 50%; transform: translate(-50%, -50%);" >
+								<h2>J. Alex Mina</h2>														
+							</div>
+
+ 
+							<div style="position:absolute; top: 15% !important; left: 3%" width="20" height="50"">									
+								<!-- <img src="images/back.png" class="label" style="width:65px;"> -->
+								<a href="index.html" class="more scrolly" style="rotate: 90deg;"></a>								
+							</div>
+						
+							
+							<div style="position:absolute; top:0; left:0; ">
+								<canvas id="canvas" width="1920" height="1080"></canvas>  <!---------------------------------------------- -->
+
+								<script>
+									const canvas = document.getElementById("canvas");
+									canvas.width = window.innerWidth;
+									canvas.height = window.innerHeight;
+									const gl = canvas.getContext("webgl2");
+							
+									// Vertex Shader
+									const vsSource = `#version 300 es
+									precision highp float;
+									in vec2 a_position;
+									in vec2 a_velocity;
+									out float v_speed;
+									uniform float u_pointSize;
+									void main() {
+										gl_Position = vec4(a_position, 0.0, 1.0);
+										gl_PointSize = u_pointSize;
+										v_speed = length(a_velocity) * 100.0; // Adjust scaling factor
+									}`;
+							
+									// Fragment Shader
+									const fsSource = `#version 300 es
+									precision highp float;
+									in float v_speed;
+									out vec4 fragColor;
+									void main() {
+										float speedNormalized = clamp(v_speed, 0.0, 1.0); // Normalize speed properly
+
+										vec2 coord = gl_PointCoord - vec2(0.5); // Centering point
+    									if (length(coord) > 0.5) discard; // Discard pixels outside the circle
+										
+										// Interpolating from dark blue to light blue
+										vec3 red = vec3(1.0, 0.2, 0.2);  // Dark blue (slowest)
+										vec3 lightBlue = vec3(0.6, 0.8, 1.0); // Light blue (fastest)
+
+										vec3 color = mix(lightBlue, red, speedNormalized);
+										fragColor = vec4(color, 1.0);
+									}`;
+							
+									// Compile Shader
+									function compileShader(gl, source, type) {
+										const shader = gl.createShader(type);
+										gl.shaderSource(shader, source);
+										gl.compileShader(shader);
+										if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+											console.error("Shader error: " + gl.getShaderInfoLog(shader));
+										}
+										return shader;
+									}
+							
+									// Create Program
+									function createProgram(gl, vsSource, fsSource) {
+										const vertexShader = compileShader(gl, vsSource, gl.VERTEX_SHADER);
+										const fragmentShader = compileShader(gl, fsSource, gl.FRAGMENT_SHADER);
+										const program = gl.createProgram();
+										gl.attachShader(program, vertexShader);
+										gl.attachShader(program, fragmentShader);
+										gl.linkProgram(program);
+										return program;
+									}
+							
+									const program = createProgram(gl, vsSource, fsSource);
+									gl.useProgram(program);
+
+
+							
+									// Create Particle Data
+									const numParticles = 1500;
+
+
+									const particleData = new Float32Array(numParticles * 4); // X, Y, VelocityX, VelocityY
+									for (let i = 0; i < numParticles * 4; i += 4) {
+										particleData[i] = (Math.random() * 2 - 1) * 0.9;  // X position
+										particleData[i + 1] = (Math.random() * 2 - 1) * 0.9; // Y position
+										particleData[i + 2] = 0; // VelocityX
+										particleData[i + 3] = 0; // VelocityY
+									}
+							
+									// Create Buffer
+									const positionBuffer = gl.createBuffer();
+									gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+									gl.bufferData(gl.ARRAY_BUFFER, particleData, gl.DYNAMIC_DRAW);
+							
+									// Get Attributes and Uniforms
+									const positionLoc = gl.getAttribLocation(program, "a_position");
+									const velocityLoc = gl.getAttribLocation(program, "a_velocity");
+									const pointSizeLoc = gl.getUniformLocation(program, "u_pointSize");
+							
+									// Setup Attributes
+									gl.enableVertexAttribArray(positionLoc);
+									gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 16, 0);
+							
+									gl.enableVertexAttribArray(velocityLoc);
+									gl.vertexAttribPointer(velocityLoc, 2, gl.FLOAT, false, 16, 8);
+							
+									// Set Point Size
+									gl.uniform1f(pointSizeLoc, 6.0);
+							
+									// Constants
+									const gravity = -0.0005; // Gravity force
+									const attractionThreshold = 0.2;  // Increased range for attraction
+									const repulsionThreshold = 0.07;  // Decreased range for repulsion
+									const dampingFactor = 0.96; // Higher value = slower damping, e.g., 0.98
+									const randomFactor = 0.00001; // Small lateral push to prevent clumping
+									const repulsionStrength = 1000.0;  // Increased stiffness
+							
+									// Mouse position
+									let mouseX = 0;
+									let mouseY = 0;
+							
+									var mouseMove = function(e)
+									{
+										mouseX = e.pageX;				
+										mouseY = e.pageY;
+									};
+							
+									canvas.addEventListener('mousemove', mouseMove, false);
+							
+									//canvas.addEventListener('mousemove', (event) => {
+									//    mouseX = (event.clientX / window.innerWidth) * 2 - 1;  // Normalize to [-1, 1]
+									//    mouseY = -((event.clientY / window.innerHeight) * 2 - 1); // Normalize to [-1, 1]
+									//});
+							
+									// Particle Simulation
+									function updateParticles() {
+							
+										const timeStep = 1.0; // Time step for prediction
+							
+										
+
+							
+										//console.log(mouseX, mouseY);
+										for (let i = 0; i < numParticles * 4; i += 4) {
+											let px = particleData[i];
+											let py = particleData[i + 1];
+											let vx = particleData[i + 2];
+											let vy = particleData[i + 3];
+							
+							
+											// **Step 1: Predict next position using velocity**
+											let predictedX = px + vx * timeStep;
+											let predictedY = py + vy * timeStep;
+							
+							
+											let influenceX = 0;
+											let influenceY = 0;
+							
+											//if (px < -0.9 || px > 0.9 || py < -0.9 || py > 0.9) {
+												//repulsionThreshold *= 1.0;//2; // Increase repulsion near edges
+												//repulsionThreshold = 0.2;
+											//}
+							
+											// Influence of other particles
+											for (let j = 0; j < numParticles * 4; j += 4) {
+												if (i === j) continue;  // Skip itself
+
+												
+							
+												let ox = particleData[j];
+												let oy = particleData[j + 1];
+							
+												let dx = ox - predictedX;
+												let dy = oy - predictedY;
+												let dist = Math.sqrt(dx * dx + dy * dy);
+												let rp2 = 1.0;
+
+												let mdx = mouseX - predictedX;
+												let mdy = mouseY - predictedY;
+												let MouseDist = Math.sqrt(mdx * mdx + mdy * mdy);
+							
+												//if(MouseDist < 0.01)
+												//{
+												//    console.log(mdx, mdy, MouseDist);
+												//    dx = -mouseX+dx;
+												//	  dy = -mouseY+dy;    
+												//}
+							
+							
+							
+												if (dist > 0.001) 
+												{ // Avoid division by zero
+													let forceX = dx / dist;
+													let forceY = dy / dist;
+							
+													// Quadratic Repulsion (stronger at very close range, falls off smoothly)
+													if (dist < repulsionThreshold) {
+														let normDist = dist / repulsionThreshold;  // Normalize [0,1]
+														let repulsionForce = (1 - normDist) * repulsionStrength ; // Linear falloff for stronger push
+
+							
+							
+														influenceX -= forceX * repulsionForce;
+														influenceY -= forceY * repulsionForce;
+													}
+							
+													// // Quadratic Attraction (strongest near sweet spot, weakens far away)
+													// else if (dist < attractionThreshold) {
+													// 	let normDist = dist / attractionThreshold;  // Normalize [0,1]
+													// 	let attractionForce = normDist * normDist * 2.0; // Quadratic increase
+													// 	influenceX += forceX * attractionForce;
+													// 	influenceY += forceY * attractionForce;
+													// }
+												}   
+											}
+							
+											
+							
+											// Apply forces
+											vx += influenceX * 0.000001;
+											vy += influenceY * 0.000001;
+							
+											// Mouse Repulsion Force
+											const mouseNormX = (mouseX / window.innerWidth) * 2 - 1; // Normalize [-1,1]
+											const mouseNormY = -((mouseY / window.innerHeight) * 2 - 1); // Normalize [-1,1]
+							
+											let dx = px - mouseNormX;
+											let dy = py - mouseNormY;
+											let dist = Math.sqrt(dx * dx + dy * dy);
+							
+											if (dist > 0.001 && dist < 0.25) { // Avoid division by zero & limit effect range
+												let m_repulsionStrength = (1.0 - dist / 0.5) * 0.0025; // Stronger when closer
+												let forceX = dx / dist * m_repulsionStrength;
+												let forceY = dy / dist * m_repulsionStrength;
+							
+												vx += forceX;
+												vy += forceY;
+											}
+											
+							
+											// Apply gravity
+											vy += gravity;
+							
+											// Artificial Viscosity using Convolution
+											const viscosityStrength = 0.005; // Adjust for smoothing effect
+											let weightedVX = 0, weightedVY = 0, totalWeight = 0;
+							
+											for (let j = 0; j < numParticles * 4; j += 4) {
+												if (i === j) continue;  // Skip itself
+							
+												let ox = particleData[j]; 
+												let oy = particleData[j + 1];
+												let ovx = particleData[j + 2];
+												let ovy = particleData[j + 3];
+							
+												let dx = ox - px;
+												let dy = oy - py;
+												let dist = Math.sqrt(dx * dx + dy * dy);
+							
+												if (dist > 0.001 && dist < 0.15) { // Only consider close neighbors
+													let weight = (1 - dist / 0.15); // Weight falls off with distance
+													weightedVX += ovx * weight;
+													weightedVY += ovy * weight;
+													totalWeight += weight;
+												}
+											}
+							
+											// Blend the original velocity with the smoothed velocity
+											if (totalWeight > 0) {
+												vx = vx * (1 - viscosityStrength) + (weightedVX / totalWeight) * viscosityStrength;
+												vy = vy * (1 - viscosityStrength) + (weightedVY / totalWeight) * viscosityStrength;
+											}
+							
+											// Apply damping to velocity (friction effect)
+											vx *= dampingFactor;
+											vy *= dampingFactor;
+							
+											// Update position
+											px += vx;
+											py += vy;
+							
+											//const edgeRepelForce = 0.0001; // Pushes particles slightly away from edges
+							
+											if (px < -0.65 || px > 0.65) {
+												px = Math.max(-0.65, Math.min(0.65, px));
+												vx *= -0.75;  // Reduce bounce strength
+												//vx += (Math.random() - 0.5) * randomFactor; // Add tiny lateral motion
+												//vx += (px < 0 ? edgeRepelForce : -edgeRepelForce); // Push away from edge
+											}
+							
+											if (py < -0.85 || py > 0.85) {
+												py = Math.max(-0.85, Math.min(0.85, py));
+												vy *= -0.75;  // Reduce bounce strength
+												//vy += (Math.random() - 0.5) * randomFactor; // Add tiny lateral motion
+												//vy += (py < 0 ? edgeRepelForce : -edgeRepelForce); // Push away from edge
+											}
+							
+											// if (py < -0.95) { 
+											//     py = 1.15; // Move to the top
+							
+											//     px = (Math.random() * 2 - 1) * 0.9; // Random X position
+											//     vy = 0; // Reset velocity
+											//     vx = 0; 
+											// }
+							
+											// Store updated values
+											particleData[i] = px;
+											particleData[i + 1] = py;
+											particleData[i + 2] = vx;
+											particleData[i + 3] = vy;
+										}
+									
+									}
+							
+									// Render Loop
+									function render() {
+										gl.clear(gl.COLOR_BUFFER_BIT);
+										
+										updateParticles();
+							
+										gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+										gl.bufferData(gl.ARRAY_BUFFER, particleData, gl.DYNAMIC_DRAW);
+							
+										gl.drawArrays(gl.POINTS, 0, numParticles);
+										requestAnimationFrame(render);
+									}
+							
+									render();
+								</script>
+
+
+							</div>
+
+
+						</div>
+
+						
+
+						
+
+						
+					</section>
+					
+
+
+
+
+				<!-- Footer -->
+					<footer id="footer">
+						<ul class="icons">
+							<li><a title="Facebook" href="https://www.facebook.com/alex0k1" class="icon brands fa-facebook-f"><span class="label">Facebook</span></a></li>
+							<li><a title="Instagram" href="https://www.instagram.com/alex0k12/" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
+							<li><a title="Linkedin" href="https://www.linkedin.com/in/jalexmina/" class="icon brands fa-linkedin"><span class="label">Linkedin</span></a></li>
+							<li><a title="Email" href="mailto:juanmina1200@gmail.com" class="icon solid fa-envelope"><span class="label">Email</span></a></li>
+							<li><a title="Resume" href="assets/Alex-Resume.pdf" class="icon solid fa-receipt"><span class="label">Resume</span></a></li>
+						</ul>
+	
+					</footer>
+
+			</div>
+
+		<!-- Scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/jquery.scrollex.min.js"></script>
+			<script src="assets/js/jquery.scrolly.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+
+	</body>
+</html>
+
+
