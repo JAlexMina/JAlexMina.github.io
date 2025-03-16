@@ -72,9 +72,9 @@
 
                                 float damping = 0.05; //Damping coefficient
                                 float dampingB = 0.001; //Damping boundary coefficient
-                                float particleRepulsionFactor = 1.5;
+                                float particleRepulsionFactor = 15.1;
                                 const int NUM_PARTICLES = 15000;  // Number of particles
-                                float viscosity = 0.30;  // Adjust for stronger/weaker viscosity [0.0 -> 1.0]
+                                float viscosity = 0.50;  // Adjust for stronger/weaker viscosity [0.0 -> 1.0]
 
                                 void main() {
                                     
@@ -92,7 +92,7 @@
                                     // Apply gravity
                                     newVelocity = velocity + force + gravity * deltaTime;
 
-                                    newVelocity *= 0.95; // Reduce velocity by 1% each frame
+                                    newVelocity *= 0.9; // Reduce velocity by 1% each frame
                                     
                                     newPosition = position + newVelocity * deltaTime;
 
@@ -109,8 +109,8 @@
 
                                             vec2 repulsion = position - otherPosition;   // Direction from other particle
                                             float dist = length(repulsion);               // Calculate distance
-                                            float threshold = 0.04;                        // Repulsion threshold
-                                            float minDist = 0.01;                         // Prevent division by zero
+                                            float threshold = 0.02;                        // Repulsion threshold
+                                            float minDist = 0.011;                         // Prevent division by zero
                                             
                                             
                                             float viscosityThreshold = 0.01;
@@ -364,7 +364,7 @@
 
                                     gl.uniform1f(uParticleIndexLocation, 0.0);
 
-                                    gl.uniform2f(gravityLoc, 0.0, -1.0);  // Adjusted gravity
+                                    gl.uniform2f(gravityLoc, 0.0, -2.8);  // Adjusted gravity
 
                                     gl.bindVertexArray(vaos[readBufferIndex]);
                                     gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
