@@ -70,11 +70,11 @@
                                 uniform vec2 gravity;  // Gravity force
                                 uniform sampler2D u_particleTexture;
 
-                                float damping = 0.02; //Damping coefficient
-                                float dampingB = 0.001; //Damping boundary coefficient
-                                float particleRepulsionFactor = 10.1;
+                                float damping = 0.025; //Damping coefficient
+                                float dampingB = 0.003; //Damping boundary coefficient
+                                float particleRepulsionFactor = 20.1;
                                 const int NUM_PARTICLES = 10000;  // Number of particles
-                                float viscosity = 0.1;  // Adjust for stronger/weaker viscosity [0.0 -> 1.0]
+                                float viscosity = 0.25;  // Adjust for stronger/weaker viscosity [0.0 -> 1.0]
 
 
                                 float cbrt(float x) {
@@ -89,8 +89,11 @@
                                     vec2 force = vec2(0.0);
 
                                     // Mouse interaction
-                                    if (uMouseDown && distance < 0.3) {
+                                    if (!uMouseDown && distance < 0.3) {
                                         force = normalize(direction) * -(pow((distance-0.3), 2.0))*15.0;
+                                    } else if(uMouseDown)
+                                    {
+                                        force = normalize(direction) * clamp(((pow((distance-0.2), 2.0))*-15.0 + 0.6), 0.0, 1.0);
                                     }
                                         
 
@@ -98,7 +101,7 @@
                                     newVelocity = velocity + force + gravity * 1.0/120.0; 
 
                                     
-                                    newPosition = position + newVelocity * deltaTime ;
+                                    newPosition = position + newVelocity * 1.0/120.0 ;
 
                                     vec2 velocityDiffusion = vec2(0.0);
                                     int neighborCount = 0;
@@ -158,40 +161,45 @@
                                     float e_B = 2.71828182;
                                     float PI_B = 3.14159265;
 
-                                    //float a = 0.7;
-                                    //float b = 1.0;
-                                    //float c = 0.5;
-                                    //float d = -0.68;
+                                    float a = 10.0;
+                                    float b = -0.8;
+                                    float c = 0.0;
 
-                                    //bell curve for repulsion
+
+                                    newVelocity = clamp(newVelocity, vec2(-0.65), vec2(0.65)); // Example clamping range
+
+
+
+ 
                                             
 
                                     // Boundary checks and elastic collision with damping
-                                    if (newPosition.x > 0.6) {
-                                        //float forceMagnitude = (c/(-1.0 * b * newPosition.x + a)) + d;
-                                        float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI_B + curveHeightB)*pow(e_B, -(pow(0.6 - newPosition.x, 2.0)) / pow((2.0*curveWidthB), 2.0))); 
+                                    if (newPosition.x > -b) {
+                                        float forceMagnitude = a*pow((newPosition.x + b), 2.0) + c;
                                         vec2 force = vec2(-1.0, 0.0) * -forceMagnitude;  // Direction and magnitude of repulsion
-                                        newVelocity -= force* dampingB;  // Apply repulsion to the particle's velocity
-                                    } else if (newPosition.x < -0.6) {
-                                        float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI_B + curveHeightB)*pow(e_B, -(pow(-0.6 - newPosition.x, 2.0)) / pow((2.0*curveWidthB), 2.0))); 
+                                        newVelocity -= force;//* dampingB;  // Apply repulsion to the particle's velocity
+                                    } else if (newPosition.x < b) {
+                                        //float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI_B + curveHeightB)*pow(e_B, -(pow(-0.6 - newPosition.x, 2.0)) / pow((2.0*curveWidthB), 2.0))); 
+                                        float forceMagnitude = a*pow((newPosition.x - b), 2.0) + c;
                                         vec2 force = vec2(1.0, 0.0) * -forceMagnitude;  // Direction and magnitude of repulsion
-                                        newVelocity -= force* dampingB;  // Apply repulsion to the particle's velocity
+                                        newVelocity -= force;//* dampingB;  // Apply repulsion to the particle's velocity
                                     }
 
-                                    if (newPosition.y > 0.6) {
-                                        float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI_B + curveHeightB)*pow(e_B, -(pow(0.6 - newPosition.y, 2.0)) / pow((2.0*curveWidthB), 2.0))); 
+                                    if (newPosition.y > -b) {
+                                        //float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI_B + curveHeightB)*pow(e_B, -(pow(0.9 - newPosition.y, 2.0)) / pow((2.0*curveWidthB), 2.0)));
+                                        float forceMagnitude = a*pow((newPosition.y + b), 2.0) + c; 
                                         vec2 force = vec2(0.0, -1.0) * -forceMagnitude;  // Direction and magnitude of repulsion
-                                        newVelocity -= force* dampingB;  // Apply repulsion to the particle's velocity
-                                    } else if (newPosition.y < -0.6) {
-                                        float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI_B + curveHeightB)*pow(e_B, -(pow(-0.6 - newPosition.y, 2.0)) / pow((2.0*curveWidthB), 2.0))); 
+                                        newVelocity -= force;//* dampingB;  // Apply repulsion to the particle's velocity
+                                    } else if (newPosition.y < b) {
+                                        float forceMagnitude = a*pow((newPosition.y - b), 2.0) + c; 
                                         vec2 force = vec2(0.0, 1.0) * -forceMagnitude;  // Direction and magnitude of repulsion
-                                        newVelocity -= force* dampingB;  // Apply repulsion to the particle's velocity
+                                        newVelocity -= force;//* dampingB;  // Apply repulsion to the particle's velocity
                                     }                                    
 
                                     // Apply damping to reduce energy over time
                                     // Applied small damping to prevent excessive oscillation
                                     //newVelocity = newVelocity * damping;
-                                    newVelocity = clamp(newVelocity, vec2(-0.5), vec2(0.5)); // Example clamping range
+                                    
                                 }
                                 `;
 
@@ -377,7 +385,7 @@
 
                                     gl.uniform1f(uParticleIndexLocation, 0.0);
 
-                                    gl.uniform2f(gravityLoc, 0.0, -10.0);  // Adjusted gravity
+                                    gl.uniform2f(gravityLoc, 0.0, -14.0);  // Adjusted gravity
 
                                     gl.bindVertexArray(vaos[readBufferIndex]);
                                     gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
