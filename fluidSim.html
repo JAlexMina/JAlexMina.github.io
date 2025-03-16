@@ -70,11 +70,16 @@
                                 uniform vec2 gravity;  // Gravity force
                                 uniform sampler2D u_particleTexture;
 
-                                float damping = 0.05; //Damping coefficient
+                                float damping = 0.02; //Damping coefficient
                                 float dampingB = 0.001; //Damping boundary coefficient
-                                float particleRepulsionFactor = 15.1;
+                                float particleRepulsionFactor = 10.1;
                                 const int NUM_PARTICLES = 15000;  // Number of particles
-                                float viscosity = 0.50;  // Adjust for stronger/weaker viscosity [0.0 -> 1.0]
+                                float viscosity = 0.1;  // Adjust for stronger/weaker viscosity [0.0 -> 1.0]
+
+
+                                float cbrt(float x) {
+                                    return sign(x) * pow(abs(x), 1.0 / 3.0);
+                                }
 
                                 void main() {
                                     
@@ -85,16 +90,21 @@
 
                                     // Mouse interaction
                                     if (uMouseDown && distance < 0.3) {
-                                        force = normalize(direction) * (0.005 / distance);
+                                        force = normalize(direction) * (0.009 / distance);
                                     }
                                         
 
                                     // Apply gravity
                                     newVelocity = velocity + force + gravity * deltaTime;
 
-                                    newVelocity *= 0.9; // Reduce velocity by 1% each frame
+                                    //float factor = 0.1;
+                                    //newVelocity *= 0.94; // Reduce velocity by 1% each frame
+                                    //float speed = length(newVelocity);
+                                    //float scale = pow(0.98, speed * factor); // Reduction increases with speed
+                                    //newVelocity *= scale;
+
                                     
-                                    newPosition = position + newVelocity * deltaTime;
+                                    newPosition = position + newVelocity * deltaTime ;
 
                                     vec2 velocityDiffusion = vec2(0.0);
                                     int neighborCount = 0;
@@ -109,11 +119,12 @@
 
                                             vec2 repulsion = position - otherPosition;   // Direction from other particle
                                             float dist = length(repulsion);               // Calculate distance
-                                            float threshold = 0.02;                        // Repulsion threshold
-                                            float minDist = 0.011;                         // Prevent division by zero
+                                            float threshold = 0.2;                        // Repulsion threshold
+
                                             
                                             
-                                            float viscosityThreshold = 0.01;
+                                            float viscosityThreshold = 0.05;
+
 
                                             if (dist <= viscosityThreshold) {
                                                 velocityDiffusion += otherVelocity;
@@ -126,22 +137,37 @@
                                             if (dist <= threshold) {
 
 
-                                                float curveHeight = 1.0;
-                                                float curveWidth = 15.0;
-                                                float e = 2.71828182;
-                                                float PI = 3.14159265;
+                                                float a = -0.8;
+                                                float b = 0.0003;
+                                                float c = -0.15;
+                                                float d = -0.025;
 
-                                                //bell curve for repulsion
-                                                float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI + curveHeight)*pow(e, -(pow(dist, 2.0)) / pow((2.0*curveWidth), 2.0)));
-                                              
+                                                float u = 0.0;
+                                                float p = 2.3;
+                                                float g = 1.795;
+                                                float k = -920.0;
+
+                                                float forceMagnitude;
+                                                
+                                                //if(dist <= 0.05)
+                                                //{
+                                                //    forceMagnitude = pow(g, (dist*k+p)*0.02+u);
+                                                //}
+                                                //else
+                                                //{
+                                                //    forceMagnitude = a*(cbrt(b*(dist+c))+d);
+                                                //}
+                                                forceMagnitude = (-4.0*dist+0.8)*0.5;
+                                                
 
                                                 vec2 force = repulseDirection * -forceMagnitude;  // Direction and magnitude of repulsion
                                                 newVelocity -= force* damping;  // Apply repulsion to the particle's velocity                                                     
-                                            }                                            
+                                            }
+                                            
                                         }
                                     }
 
-                                if (neighborCount > 0) {
+                                    if (neighborCount > 0) {
                                         velocityDiffusion /= float(neighborCount);
                                         newVelocity = mix(velocityDiffusion, newVelocity, viscosity);
                                     }
@@ -364,7 +390,7 @@
 
                                     gl.uniform1f(uParticleIndexLocation, 0.0);
 
-                                    gl.uniform2f(gravityLoc, 0.0, -2.8);  // Adjusted gravity
+                                    gl.uniform2f(gravityLoc, 0.0, -10.0);  // Adjusted gravity
 
                                     gl.bindVertexArray(vaos[readBufferIndex]);
                                     gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
