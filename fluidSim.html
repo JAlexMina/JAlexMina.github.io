@@ -95,13 +95,7 @@
                                         
 
                                     // Apply gravity
-                                    newVelocity = velocity + force + gravity * deltaTime;
-
-                                    //float factor = 0.1;
-                                    //newVelocity *= 0.94; // Reduce velocity by 1% each frame
-                                    //float speed = length(newVelocity);
-                                    //float scale = pow(0.98, speed * factor); // Reduction increases with speed
-                                    //newVelocity *= scale;
+                                    newVelocity = velocity + force + gravity * 1.0/120.0; 
 
                                     
                                     newPosition = position + newVelocity * deltaTime ;
@@ -124,7 +118,7 @@
 
                                             
                                             
-                                            float viscosityThreshold = 0.05;
+                                            float viscosityThreshold = 0.06;
 
 
                                             if (dist <= viscosityThreshold) {
@@ -164,15 +158,20 @@
                                     float e_B = 2.71828182;
                                     float PI_B = 3.14159265;
 
+                                    //float a = 0.7;
+                                    //float b = 1.0;
+                                    //float c = 0.5;
+                                    //float d = -0.68;
+
                                     //bell curve for repulsion
                                             
 
                                     // Boundary checks and elastic collision with damping
                                     if (newPosition.x > 0.6) {
+                                        //float forceMagnitude = (c/(-1.0 * b * newPosition.x + a)) + d;
                                         float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI_B + curveHeightB)*pow(e_B, -(pow(0.6 - newPosition.x, 2.0)) / pow((2.0*curveWidthB), 2.0))); 
                                         vec2 force = vec2(-1.0, 0.0) * -forceMagnitude;  // Direction and magnitude of repulsion
                                         newVelocity -= force* dampingB;  // Apply repulsion to the particle's velocity
-                                        //newVelocity.x =  abs(newVelocity.x) * -0.98;
                                     } else if (newPosition.x < -0.6) {
                                         float forceMagnitude = (1.0) / (particleRepulsionFactor*sqrt(2.0*PI_B + curveHeightB)*pow(e_B, -(pow(-0.6 - newPosition.x, 2.0)) / pow((2.0*curveWidthB), 2.0))); 
                                         vec2 force = vec2(1.0, 0.0) * -forceMagnitude;  // Direction and magnitude of repulsion
