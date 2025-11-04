@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+    <link rel="icon" href="images/favicon_io/favicon.ico">
+<head>
+  <meta charset="UTF-8" />
+  <title>WebGL Camera Post-Processing Base</title>
+
+  <link rel="stylesheet" href="assets/css/main.css" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #111;
+      color: #eee;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #controls {
+      padding: 10px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      background: #181818;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+      z-index: 10;
+    }
+
+    #controls buttonIF {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid #333;
+      background: #222;
+      color: #eee;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    #controls buttonIF:hover {
+      background: #2e2e2e;
+      box-shadow: 0 0 0 1px #444;
+      transform: translateY(-1px);
+    }
+
+    #controls buttonIF:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    #controls buttonIF.effect-buttonIF.active {
+      background: #3a6df0;
+      border-color: #3a6df0;
+      box-shadow: 0 0 0 1px #3a6df0;
+      color: #fff;
+    }
+
+    #canvasContainer {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      min-height: 0; /* allows canvas to scale properly in flexbox */
+    }
+
+    #glcanvas {
+      width: 100%;
+      height: 100%;
+      max-width: 1200px;
+      max-height: 800px;
+      border-radius: 12px;
+      background: #000;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <buttonIF id="startbuttonIF">Start Camera</buttonIF>
+    <buttonIF class="effect-buttonIF" data-effect="grayscale">Grayscale</buttonIF>
+    <buttonIF class="effect-buttonIF" data-effect="sharpen">Sharpen</buttonIF>
+    <buttonIF class="effect-buttonIF" data-effect="blur">Blur</buttonIF>
+    <buttonIF class="effect-buttonIF" data-effect="edge">Edge Detection</buttonIF>
+    <buttonIF class="effect-buttonIF" data-effect="denoise">Denoise</buttonIF>
+  </div>
+
+  <div id="canvasContainer">
+    <canvas id="glcanvas"></canvas>
+  </div>
+
+  <!-- Hidden video element (camera source) -->
+  <video id="video" autoplay playsinline style="display:none;"></video>
+
+  <!-- Footer -->
+  <footer id="footer">
+    <ul class="icons">
+      <li><a title="Facebook" href="https://www.facebook.com/alex0k1" class="icon brands fa-facebook-f"><span class="label">Facebook</span></a></li>
+      <li><a title="Instagram" href="https://www.instagram.com/alex0k12/" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
+      <li><a title="Linkedin" href="https://www.linkedin.com/in/jalexmina/" class="icon brands fa-linkedin"><span class="label">Linkedin</span></a></li>
+      <li><a title="Email" href="mailto:juanmina1200@gmail.com" class="icon solid fa-envelope"><span class="label">Email</span></a></li>
+      <li><a title="Resume" href="assets/Alex-Resume.pdf" class="icon solid fa-receipt"><span class="label">Resume</span></a></li>
+    </ul>
+  </footer>
+
+    <script>
+    const startbuttonIF = document.getElementById('startbuttonIF');
+    const effectbuttonIFs = document.querySelectorAll('.effect-buttonIF');
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('glcanvas');
+
+    let gl;
+    let program;
+    let positionBuffer;
+    let texcoordBuffer;
+    let texture;
+
+    let u_samplerLocation;
+    let u_enableGrayscaleLocation;
+    let u_enableSharpenLocation;
+    let u_enableBlurLocation;
+    let u_enableEdgeLocation;
+    let u_enableDenoiseLocation;
+
+    // State for each effect (independent toggles)
+    const effectsState = {
+      grayscale: false,
+      sharpen: false,
+      blur: false,
+      edge: false,
+      denoise: false
+    };
+
+    // Camera state
+    let mediaStream = null;
+    let isCameraRunning = false;
+
+    // Toggle start/stop on the same button
+    startbuttonIF.addEventListener('click', handleCameraToggle);
+
+    effectbuttonIFs.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const effectName = btn.getAttribute('data-effect');
+
+        // Toggle active class (not mutually exclusive)
+        const nowActive = btn.classList.toggle('active');
+
+        // Update JS state for this effect
+        effectsState[effectName] = nowActive;
+
+        console.log('Effects state:', effectsState);
+      });
+    });
+
+    async function handleCameraToggle() {
+      if (!isCameraRunning) {
+        await startCameraAndWebGL();
+      } else {
+        stopCamera();
+      }
+    }
+
+    async function startCameraAndWebGL() {
+      try {
+        // Always request a fresh stream (will re-prompt for permission)
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',         // or 'environment' on mobile
+            width:  { ideal: 1920 },    // or exact: { exact: 1920 }
+            height: { ideal: 1080 }
+          },
+          audio: false
+        });
+
+        video.srcObject = mediaStream;
+        await video.play();
+
+        // Initialize WebGL and render loop only once
+        if (!gl) {
+          initWebGL();
+          requestAnimationFrame(render);
+        }
+
+        isCameraRunning = true;
+        startbuttonIF.textContent = 'Stop Camera';
+      } catch (err) {
+        console.error('Error accessing camera:', err);
+        alert('Could not access camera. Check permissions and HTTPS.');
+      }
+    }
+
+    function stopCamera() {
+        if (mediaStream) {
+            // Fully stop the camera hardware
+            mediaStream.getTracks().forEach(track => track.stop());
+            mediaStream = null;
+        }
+
+        video.pause();
+        video.srcObject = null;
+
+        isCameraRunning = false;
+        startbuttonIF.textContent = 'Start Camera';
+
+        // --- Clear the WebGL canvas to black when the camera stops ---
+        if (gl) {
+            gl.clearColor(0.0, 0.0, 0.0, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+        }
+    }
+
+    function initWebGL() {
+      gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) {
+        alert('WebGL not supported');
+        return;
+      }
+
+      resizeCanvasToDisplaySize();
+
+      const vertexShaderSource = `
+        attribute vec2 a_position;
+        attribute vec2 a_texcoord;
+
+        varying vec2 v_texcoord;
+
+        void main() 
+        {
+            gl_Position = vec4(a_position, 0.0, 1.0);
+            v_texcoord = a_texcoord;
+        }
+      `;
+
+      const fragmentShaderSource = `
+        precision mediump float;
+
+        varying vec2 v_texcoord;
+        uniform sampler2D u_sampler;
+
+        // Effect toggle uniforms
+        uniform bool u_enableGrayscale;
+        uniform bool u_enableSharpen;
+        uniform bool u_enableBlur;
+        uniform bool u_enableEdge;
+        uniform bool u_enableDenoise;
+
+        void main() 
+        {
+            vec4 color = texture2D(u_sampler, v_texcoord);
+            vec3 rgb = color.rgb;
+
+            if (u_enableGrayscale) 
+            {
+                float gray = dot(rgb, vec3(0.299, 0.587, 0.114));
+                rgb = vec3(gray);
+            }
+
+            // if (u_enableSharpen)   { ... }
+            // if (u_enableBlur)      { ... }
+            // if (u_enableEdge)      { ... }
+            // if (u_enableDenoise)   { ... }
+            
+            gl_FragColor = vec4(rgb, color.a);
+        }
+      `;
+
+      const vertexShader = createShader(gl.VERTEX_SHADER, vertexShaderSource);
+      const fragmentShader = createShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
+      program = createProgram(vertexShader, fragmentShader);
+
+      gl.useProgram(program);
+
+      const positionLocation = gl.getAttribLocation(program, 'a_position');
+      const texcoordLocation = gl.getAttribLocation(program, 'a_texcoord');
+
+      u_samplerLocation         = gl.getUniformLocation(program, 'u_sampler');
+      u_enableGrayscaleLocation = gl.getUniformLocation(program, 'u_enableGrayscale');
+      u_enableSharpenLocation   = gl.getUniformLocation(program, 'u_enableSharpen');
+      u_enableBlurLocation      = gl.getUniformLocation(program, 'u_enableBlur');
+      u_enableEdgeLocation      = gl.getUniformLocation(program, 'u_enableEdge');
+      u_enableDenoiseLocation   = gl.getUniformLocation(program, 'u_enableDenoise');
+
+      // Full-screen quad (two triangles) in clip space
+      const positions = new Float32Array([
+        -1, -1,
+         1, -1,
+        -1,  1,
+        -1,  1,
+         1, -1,
+         1,  1
+      ]);
+
+      // Texture coordinates
+      const texcoords = new Float32Array([
+        0, 1,
+        1, 1,
+        0, 0,
+        0, 0,
+        1, 1,
+        1, 0
+      ]);
+
+      // Position buffer
+      positionBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(positionLocation);
+      gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+      // Texcoord buffer
+      texcoordBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, texcoords, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(texcoordLocation);
+      gl.vertexAttribPointer(texcoordLocation, 2, gl.FLOAT, false, 0, 0);
+
+      // Texture from video
+      texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        1,
+        1,
+        0,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        new Uint8Array([0, 0, 0, 255])
+      );
+
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+      gl.clearColor(0, 0, 0, 1);
+    }
+
+    function createShader(type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+      }
+      return shader;
+    }
+
+    function createProgram(vertexShader, fragmentShader) {
+      const prog = gl.createProgram();
+      gl.attachShader(prog, vertexShader);
+      gl.attachShader(prog, fragmentShader);
+      gl.linkProgram(prog);
+
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+        console.error('Program link error:', gl.getProgramInfoLog(prog));
+        gl.deleteProgram(prog);
+        return null;
+      }
+      return prog;
+    }
+
+    function resizeCanvasToDisplaySize() {
+      if (!gl) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const displayWidth = Math.floor(canvas.clientWidth * dpr);
+      const displayHeight = Math.floor(canvas.clientHeight * dpr);
+
+      if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+        canvas.width = displayWidth;
+        canvas.height = displayHeight;
+      }
+
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+
+    function render() {
+      if (!gl || video.readyState < video.HAVE_CURRENT_DATA) {
+        requestAnimationFrame(render);
+        return;
+      }
+
+      resizeCanvasToDisplaySize();
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      try {
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          video
+        );
+      } catch (e) {
+        console.warn('texImage2D video error:', e);
+      }
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.uniform1i(u_samplerLocation, 0);
+
+      // Push effect state to shader (bools as ints)
+      if (u_enableGrayscaleLocation) gl.uniform1i(u_enableGrayscaleLocation, effectsState.grayscale ? 1 : 0);
+      if (u_enableSharpenLocation)   gl.uniform1i(u_enableSharpenLocation,   effectsState.sharpen   ? 1 : 0);
+      if (u_enableBlurLocation)      gl.uniform1i(u_enableBlurLocation,      effectsState.blur      ? 1 : 0);
+      if (u_enableEdgeLocation)      gl.uniform1i(u_enableEdgeLocation,      effectsState.edge      ? 1 : 0);
+      if (u_enableDenoiseLocation)   gl.uniform1i(u_enableDenoiseLocation,   effectsState.denoise   ? 1 : 0);
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      requestAnimationFrame(render);
+    }
+
+    window.addEventListener('resize', () => {
+      if (gl) {
+        resizeCanvasToDisplaySize();
+      }
+    });
+  </script>
+
+</body>
+</html>
