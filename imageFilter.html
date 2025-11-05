@@ -131,6 +131,28 @@
                 border-radius: 12px;
                 background: #000;
                 box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+
+                /* Mirror the WebGL output horizontally */
+                transform: scaleX(-1);
+            }
+
+
+            /* Mobile layout tweaks */
+            @media (max-width: 736px) {
+
+                /* Let the canvas container give all its height to the canvas */
+                #canvasContainer {
+                    padding: 8px;
+                    align-items: stretch;  /* instead of centering vertically */
+                }
+
+                #glcanvas {
+                    width: 100vw;          /* span full screen width */
+                    max-width: 100vw;
+                    height: auto;          /* let height be determined by aspect ratio */
+                    aspect-ratio: 16 / 9;  /* or 4 / 3 if you prefer */
+                    max-height: none;
+                }
             }
 
 
