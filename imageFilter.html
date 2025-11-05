@@ -142,16 +142,23 @@
 
                 /* Let the canvas container give all its height to the canvas */
                 #canvasContainer {
-                    padding: 8px;
-                    align-items: stretch;  /* instead of centering vertically */
+                    position: relative;
+                    width: 100%;
+                    height: auto;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
                 }
 
                 #glcanvas {
-                    width: 100vw;          /* span full screen width */
-                    max-width: 100vw;
-                    height: auto;          /* let height be determined by aspect ratio */
-                    aspect-ratio: 16 / 9;  /* or 4 / 3 if you prefer */
-                    max-height: none;
+                    width: 100%;
+                    height: auto;           /* keeps correct proportions */
+                    aspect-ratio: 16 / 9;   /* or 4 / 3 depending on your camera */
+                    max-width: 100%;
+                    background: #000;
+                    border-radius: 12px;
+                    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+                    transform: scaleX(-1);  /* mirror effect */
                 }
             }
 
@@ -839,6 +846,7 @@
                 if (u_enableEdgeLocation)      gl.uniform1i(u_enableEdgeLocation,      effectsState.edge      ? 1 : 0);
                 if (u_enableDenoiseLocation)   gl.uniform1i(u_enableDenoiseLocation,   effectsState.denoise   ? 1 : 0);
 
+                gl.viewport(0, 0, canvas.width, canvas.height);
                 gl.drawArrays(gl.TRIANGLES, 0, 6);
 
                 requestAnimationFrame(render);
