@@ -6,6 +6,10 @@
         <title>WebGL Camera Post-Processing Base</title>
 
         <link rel="stylesheet" href="assets/css/main.css" />
+        <script src="utility.js"></script>
+        <script src="gl-matrix-min.js"></script>
+   		<script src="noise3D.js"></script>
+        <noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
 
         <style>
             * 
@@ -18,7 +22,7 @@
                 margin: 0;
                 padding: 0;
                 height: 100%;
-                background: #111;
+                background: #2e3842;
                 color: #eee;
                 font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             }
@@ -37,7 +41,7 @@
                 gap: 6px;
                 align-items: center;
                 justify-content: center;
-                background: #181818;
+                background: #2e3842;
                 box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
                 z-index: 10;
             }
@@ -128,10 +132,32 @@
                 background: #000;
                 box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
             }
+
+
         </style>
     </head>
-    <body>
+    <!-- <body> -->
+
+        <body class="landing is-preload">
+
+		<!-- Page Wrapper -->
+			<div id="page-wrapper" style="background: #1d242a !important; background-image: none !important;">
+
+
+
+				<!-- Banner -->
+					<section id="banner">
+						<div id="container123">
+		
+		<div style="position:absolute; top: 15%; left: 3%; z-index:1000;">										
+			<a href="index.html" class="more scrolly" style="rotate: 90deg;"></a>								
+		</div>
+				
+
         <div id="controls">
+
+    
+
             <div id="buttonRow">
             <buttonIF id="startbuttonIF">Start Camera</buttonIF>
             <buttonIF class="effect-buttonIF" data-effect="grayscale">Grayscale</buttonIF>
@@ -165,6 +191,9 @@
             </div>
             </div>
         </div>
+        		
+
+        
 
         <div id="canvasContainer">
             <canvas id="glcanvas"></canvas>
@@ -173,8 +202,9 @@
         <!-- Hidden video element (camera source) -->
         <video id="video" autoplay playsinline style="display:none;"></video>
 
+
         <!-- Footer -->
-        <footer id="footer">
+        <footer id="footer" style="background: #2e3842; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);">
             <ul class="icons">
             <li><a title="Facebook" href="https://www.facebook.com/alex0k1" class="icon brands fa-facebook-f"><span class="label">Facebook</span></a></li>
             <li><a title="Instagram" href="https://www.instagram.com/alex0k12/" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
@@ -800,6 +830,18 @@
                 }
             });
         </script>
+
+        </section>
+
+        </div>
+
+        <script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/jquery.scrollex.min.js"></script>
+			<script src="assets/js/jquery.scrolly.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
 
     </body>
 </html>

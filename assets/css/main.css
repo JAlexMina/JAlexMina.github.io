@@ -3579,6 +3579,35 @@ input, select, textarea {
 
 /* Banner */
 
+.moreIF {
+    position: relative;
+    display: block;
+    width: 3em;
+    height: 3em;
+    border: none;
+    outline: 0;
+    text-indent: -9999px;
+}
+
+.moreIF::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1.5em;
+    height: 1.5em;
+    margin: -0.75em 0 0 -0.75em;
+    background-image: url("images/arrow.svg"); /* this works in main.css */
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    transform: rotate(90deg);
+}
+
+.moreIF:hover::after {
+    opacity: 0.8;
+}
+
 	#banner {
 		display: -moz-flex;
 		display: -webkit-flex;
@@ -3842,6 +3871,11 @@ input, select, textarea {
 		background-repeat: no-repeat;
 		background-size: cover;
 		text-align: center;
+	}
+
+	.camera-page #main > header {
+	background: #000 !important;
+	background-image: none !important;
 	}
 
 		#main > header h2 {
