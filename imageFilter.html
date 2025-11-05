@@ -153,13 +153,21 @@
                 #glcanvas {
                     width: 100%;
                     height: auto;           /* keeps correct proportions */
-                    aspect-ratio: 4 / 3;   /* or 4 / 3 depending on your camera */
+                    aspect-ratio: 16 / 9;   /* or 4 / 3 depending on your camera */
                     max-width: 100%;
                     background: #000;
                     border-radius: 12px;
                     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
                     transform: scaleX(-1);  /* mirror effect */
                 }
+            }
+
+            /* Camera page overrides */
+            #banner {
+                height: auto;              /* allow it to grow with content */
+                min-height: 100vh;         /* still at least full-screen */
+                overflow: visible;         /* don't clip content */
+                justify-content: flex-start; /* content starts at top, not centered */
             }
 
 
@@ -413,6 +421,9 @@
 
                     video.srcObject = mediaStream;
                     await video.play();
+
+                    // Now we know video.videoWidth/Height
+                    updateCanvasSizeFromVideo();
 
                     // Initialize WebGL and render loop only once
                     if (!gl) 
@@ -769,19 +780,20 @@
 
             function resizeCanvasToDisplaySize() 
             {
-                if (!gl) return;
+                // if (!gl) return;
 
-                const dpr = window.devicePixelRatio || 1;
-                const displayWidth = Math.floor(canvas.clientWidth * dpr);
-                const displayHeight = Math.floor(canvas.clientHeight * dpr);
+                // const dpr = window.devicePixelRatio || 1;
+                // const displayWidth = Math.floor(canvas.clientWidth * dpr);
+                // const displayHeight = Math.floor(canvas.clientHeight * dpr);
 
-                if (canvas.width !== displayWidth || canvas.height !== displayHeight) 
-                {
-                    canvas.width = displayWidth;
-                    canvas.height = displayHeight;
-                }
+                // if (canvas.width !== displayWidth || canvas.height !== displayHeight) 
+                // {
+                //     canvas.width = displayWidth;
+                //     canvas.height = displayHeight;
+                // }
 
-                gl.viewport(0, 0, canvas.width, canvas.height);
+                // gl.viewport(0, 0, canvas.width, canvas.height);
+                updateCanvasSizeFromVideo();
             }
 
             function updateQuadForAspect() {
@@ -813,6 +825,44 @@
                 gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
                 gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
             }
+
+            function updateCanvasSizeFromVideo() {
+                if (!gl || !video.videoWidth || !video.videoHeight) return;
+
+                const videoAspect = video.videoWidth / video.videoHeight;
+
+                const dpr = window.devicePixelRatio || 1;
+
+                // Max size = width of the container
+                const container = canvas.parentElement || document.body;
+                const maxCssWidth = container.clientWidth;
+                const maxCssHeight = window.innerHeight - 200; // leave room for controls/footer
+
+                // Start by fitting width
+                let cssWidth = maxCssWidth;
+                let cssHeight = cssWidth / videoAspect;
+
+                // If too tall, clamp by height instead
+                if (cssHeight > maxCssHeight) {
+                    cssHeight = maxCssHeight;
+                    cssWidth = cssHeight * videoAspect;
+                }
+
+                // Apply CSS size (layout box)
+                canvas.style.width = cssWidth + 'px';
+                canvas.style.height = cssHeight + 'px';
+
+                // Match WebGL drawing buffer to CSS size * DPR
+                const displayWidth  = Math.round(cssWidth * dpr);
+                const displayHeight = Math.round(cssHeight * dpr);
+
+                if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+                    canvas.width = displayWidth;
+                    canvas.height = displayHeight;
+                    gl.viewport(0, 0, canvas.width, canvas.height);
+                }
+            }
+
 
             function render() 
             {
