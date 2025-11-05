@@ -1,441 +1,805 @@
 <!DOCTYPE html>
 <html lang="en">
     <link rel="icon" href="images/favicon_io/favicon.ico">
-<head>
-  <meta charset="UTF-8" />
-  <title>WebGL Camera Post-Processing Base</title>
+    <head>
+        <meta charset="UTF-8" />
+        <title>WebGL Camera Post-Processing Base</title>
 
-  <link rel="stylesheet" href="assets/css/main.css" />
+        <link rel="stylesheet" href="assets/css/main.css" />
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      background: #111;
-      color: #eee;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-
-    body {
-      display: flex;
-      flex-direction: column;
-    }
-
-    #controls {
-      padding: 10px 16px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      justify-content: center;
-      background: #181818;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-      z-index: 10;
-    }
-
-    #controls buttonIF {
-      padding: 8px 14px;
-      border-radius: 999px;
-      border: 1px solid #333;
-      background: #222;
-      color: #eee;
-      cursor: pointer;
-      font-size: 14px;
-      transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-    }
-
-    #controls buttonIF:hover {
-      background: #2e2e2e;
-      box-shadow: 0 0 0 1px #444;
-      transform: translateY(-1px);
-    }
-
-    #controls buttonIF:active {
-      transform: translateY(0);
-      box-shadow: none;
-    }
-
-    #controls buttonIF.effect-buttonIF.active {
-      background: #3a6df0;
-      border-color: #3a6df0;
-      box-shadow: 0 0 0 1px #3a6df0;
-      color: #fff;
-    }
-
-    #canvasContainer {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      min-height: 0; /* allows canvas to scale properly in flexbox */
-    }
-
-    #glcanvas {
-      width: 100%;
-      height: 100%;
-      max-width: 1200px;
-      max-height: 800px;
-      border-radius: 12px;
-      background: #000;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
-    }
-  </style>
-</head>
-<body>
-  <div id="controls">
-    <buttonIF id="startbuttonIF">Start Camera</buttonIF>
-    <buttonIF class="effect-buttonIF" data-effect="grayscale">Grayscale</buttonIF>
-    <buttonIF class="effect-buttonIF" data-effect="sharpen">Sharpen</buttonIF>
-    <buttonIF class="effect-buttonIF" data-effect="blur">Blur</buttonIF>
-    <buttonIF class="effect-buttonIF" data-effect="edge">Edge Detection</buttonIF>
-    <buttonIF class="effect-buttonIF" data-effect="denoise">Denoise</buttonIF>
-  </div>
-
-  <div id="canvasContainer">
-    <canvas id="glcanvas"></canvas>
-  </div>
-
-  <!-- Hidden video element (camera source) -->
-  <video id="video" autoplay playsinline style="display:none;"></video>
-
-  <!-- Footer -->
-  <footer id="footer">
-    <ul class="icons">
-      <li><a title="Facebook" href="https://www.facebook.com/alex0k1" class="icon brands fa-facebook-f"><span class="label">Facebook</span></a></li>
-      <li><a title="Instagram" href="https://www.instagram.com/alex0k12/" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
-      <li><a title="Linkedin" href="https://www.linkedin.com/in/jalexmina/" class="icon brands fa-linkedin"><span class="label">Linkedin</span></a></li>
-      <li><a title="Email" href="mailto:juanmina1200@gmail.com" class="icon solid fa-envelope"><span class="label">Email</span></a></li>
-      <li><a title="Resume" href="assets/Alex-Resume.pdf" class="icon solid fa-receipt"><span class="label">Resume</span></a></li>
-    </ul>
-  </footer>
-
-    <script>
-    const startbuttonIF = document.getElementById('startbuttonIF');
-    const effectbuttonIFs = document.querySelectorAll('.effect-buttonIF');
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('glcanvas');
-
-    let gl;
-    let program;
-    let positionBuffer;
-    let texcoordBuffer;
-    let texture;
-
-    let u_samplerLocation;
-    let u_enableGrayscaleLocation;
-    let u_enableSharpenLocation;
-    let u_enableBlurLocation;
-    let u_enableEdgeLocation;
-    let u_enableDenoiseLocation;
-
-    // State for each effect (independent toggles)
-    const effectsState = {
-      grayscale: false,
-      sharpen: false,
-      blur: false,
-      edge: false,
-      denoise: false
-    };
-
-    // Camera state
-    let mediaStream = null;
-    let isCameraRunning = false;
-
-    // Toggle start/stop on the same button
-    startbuttonIF.addEventListener('click', handleCameraToggle);
-
-    effectbuttonIFs.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const effectName = btn.getAttribute('data-effect');
-
-        // Toggle active class (not mutually exclusive)
-        const nowActive = btn.classList.toggle('active');
-
-        // Update JS state for this effect
-        effectsState[effectName] = nowActive;
-
-        console.log('Effects state:', effectsState);
-      });
-    });
-
-    async function handleCameraToggle() {
-      if (!isCameraRunning) {
-        await startCameraAndWebGL();
-      } else {
-        stopCamera();
-      }
-    }
-
-    async function startCameraAndWebGL() {
-      try {
-        // Always request a fresh stream (will re-prompt for permission)
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'user',         // or 'environment' on mobile
-            width:  { ideal: 1920 },    // or exact: { exact: 1920 }
-            height: { ideal: 1080 }
-          },
-          audio: false
-        });
-
-        video.srcObject = mediaStream;
-        await video.play();
-
-        // Initialize WebGL and render loop only once
-        if (!gl) {
-          initWebGL();
-          requestAnimationFrame(render);
-        }
-
-        isCameraRunning = true;
-        startbuttonIF.textContent = 'Stop Camera';
-      } catch (err) {
-        console.error('Error accessing camera:', err);
-        alert('Could not access camera. Check permissions and HTTPS.');
-      }
-    }
-
-    function stopCamera() {
-        if (mediaStream) {
-            // Fully stop the camera hardware
-            mediaStream.getTracks().forEach(track => track.stop());
-            mediaStream = null;
-        }
-
-        video.pause();
-        video.srcObject = null;
-
-        isCameraRunning = false;
-        startbuttonIF.textContent = 'Start Camera';
-
-        // --- Clear the WebGL canvas to black when the camera stops ---
-        if (gl) {
-            gl.clearColor(0.0, 0.0, 0.0, 1.0);
-            gl.clear(gl.COLOR_BUFFER_BIT);
-        }
-    }
-
-    function initWebGL() {
-      gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (!gl) {
-        alert('WebGL not supported');
-        return;
-      }
-
-      resizeCanvasToDisplaySize();
-
-      const vertexShaderSource = `
-        attribute vec2 a_position;
-        attribute vec2 a_texcoord;
-
-        varying vec2 v_texcoord;
-
-        void main() 
-        {
-            gl_Position = vec4(a_position, 0.0, 1.0);
-            v_texcoord = a_texcoord;
-        }
-      `;
-
-      const fragmentShaderSource = `
-        precision mediump float;
-
-        varying vec2 v_texcoord;
-        uniform sampler2D u_sampler;
-
-        // Effect toggle uniforms
-        uniform bool u_enableGrayscale;
-        uniform bool u_enableSharpen;
-        uniform bool u_enableBlur;
-        uniform bool u_enableEdge;
-        uniform bool u_enableDenoise;
-
-        void main() 
-        {
-            vec4 color = texture2D(u_sampler, v_texcoord);
-            vec3 rgb = color.rgb;
-
-            if (u_enableGrayscale) 
+        <style>
+            * 
             {
-                float gray = dot(rgb, vec3(0.299, 0.587, 0.114));
-                rgb = vec3(gray);
+                box-sizing: border-box;
             }
 
-            // if (u_enableSharpen)   { ... }
-            // if (u_enableBlur)      { ... }
-            // if (u_enableEdge)      { ... }
-            // if (u_enableDenoise)   { ... }
-            
-            gl_FragColor = vec4(rgb, color.a);
-        }
-      `;
+            html, body 
+            {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                background: #111;
+                color: #eee;
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            }
 
-      const vertexShader = createShader(gl.VERTEX_SHADER, vertexShaderSource);
-      const fragmentShader = createShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
-      program = createProgram(vertexShader, fragmentShader);
+            body 
+            {
+                display: flex;
+                flex-direction: column;
+            }
 
-      gl.useProgram(program);
+            #controls 
+            {
+                padding: 10px 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                align-items: center;
+                justify-content: center;
+                background: #181818;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+                z-index: 10;
+            }
 
-      const positionLocation = gl.getAttribLocation(program, 'a_position');
-      const texcoordLocation = gl.getAttribLocation(program, 'a_texcoord');
+            #buttonRow 
+            {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                align-items: center;
+                justify-content: center;
+            }
 
-      u_samplerLocation         = gl.getUniformLocation(program, 'u_sampler');
-      u_enableGrayscaleLocation = gl.getUniformLocation(program, 'u_enableGrayscale');
-      u_enableSharpenLocation   = gl.getUniformLocation(program, 'u_enableSharpen');
-      u_enableBlurLocation      = gl.getUniformLocation(program, 'u_enableBlur');
-      u_enableEdgeLocation      = gl.getUniformLocation(program, 'u_enableEdge');
-      u_enableDenoiseLocation   = gl.getUniformLocation(program, 'u_enableDenoise');
+            #controls buttonIF 
+            {
+                padding: 8px 14px;
+                border-radius: 999px;
+                border: 1px solid #333;
+                background: #222;
+                color: #eee;
+                cursor: pointer;
+                font-size: 14px;
+                transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+            }
 
-      // Full-screen quad (two triangles) in clip space
-      const positions = new Float32Array([
-        -1, -1,
-         1, -1,
-        -1,  1,
-        -1,  1,
-         1, -1,
-         1,  1
-      ]);
+            #controls buttonIF:hover 
+            {
+                background: #2e2e2e;
+                box-shadow: 0 0 0 1px #444;
+                transform: translateY(-1px);
+            }
 
-      // Texture coordinates
-      const texcoords = new Float32Array([
-        0, 1,
-        1, 1,
-        0, 0,
-        0, 0,
-        1, 1,
-        1, 0
-      ]);
+            #controls buttonIF:active 
+            {
+                transform: translateY(0);
+                box-shadow: none;
+            }
 
-      // Position buffer
-      positionBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-      gl.enableVertexAttribArray(positionLocation);
-      gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+            #controls buttonIF.effect-buttonIF.active 
+            {
+                background: #3a6df0;
+                border-color: #3a6df0;
+                box-shadow: 0 0 0 1px #3a6df0;
+                color: #fff;
+            }
 
-      // Texcoord buffer
-      texcoordBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, texcoords, gl.STATIC_DRAW);
-      gl.enableVertexAttribArray(texcoordLocation);
-      gl.vertexAttribPointer(texcoordLocation, 2, gl.FLOAT, false, 0, 0);
+            #kernelControls 
+            {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
+            }
 
-      // Texture from video
-      texture = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        1,
-        1,
-        0,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        new Uint8Array([0, 0, 0, 255])
-      );
+            .kernel-group 
+            {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                font-size: 12px;
+                color: #ccc;
+            }
 
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            .kernel-group input[type="range"] 
+            {
+                width: 120px;
+            }
 
-      gl.clearColor(0, 0, 0, 1);
-    }
+            #canvasContainer 
+            {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 16px;
+                min-height: 0; /* allows canvas to scale properly in flexbox */
+            }
 
-    function createShader(type, source) {
-      const shader = gl.createShader(type);
-      gl.shaderSource(shader, source);
-      gl.compileShader(shader);
+            #glcanvas 
+            {
+                width: 100%;
+                height: 100%;
+                max-width: 1200px;
+                max-height: 800px;
+                border-radius: 12px;
+                background: #000;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+            }
+        </style>
+    </head>
+    <body>
+        <div id="controls">
+            <div id="buttonRow">
+            <buttonIF id="startbuttonIF">Start Camera</buttonIF>
+            <buttonIF class="effect-buttonIF" data-effect="grayscale">Grayscale</buttonIF>
+            <buttonIF class="effect-buttonIF" data-effect="sharpen">Sharpen</buttonIF>
+            <buttonIF class="effect-buttonIF" data-effect="blur">Blur</buttonIF>
+            <buttonIF class="effect-buttonIF" data-effect="edge">Edge Detection</buttonIF>
+            <buttonIF class="effect-buttonIF" data-effect="denoise">Denoise</buttonIF>
+            </div>
 
-      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.error('Shader compile error:', gl.getShaderInfoLog(shader));
-        gl.deleteShader(shader);
-        return null;
-      }
-      return shader;
-    }
+            <div id="kernelControls">
+            <div class="kernel-group">
+                <span>Blur kernel</span>
+                <input type="range" id="blurKernelSlider" min="0" max="12" value="1">
+                <span id="blurKernelValue">3×3</span>
+            </div>
+            <div class="kernel-group">
+                <span>Sharpen kernel</span>
+                <input type="range" id="sharpenKernelSlider" min="0" max="12" value="1">
+                <span id="sharpenKernelValue">3×3</span>
+            </div>
+            <div class="kernel-group">
+                <span>Edge kernel</span>
+                <!-- max changed from 12 to 3 for 7×7 max -->
+                <input type="range" id="edgeKernelSlider" min="1" max="3" value="1">
+                <span id="edgeKernelValue">3×3</span>
+            </div>
+            <div class="kernel-group">
+                <span>Denoise strength</span>
+                <input type="range" id="denoiseStrengthSlider" min="0" max="1" step="0.05" value="1">
+                <span id="denoiseStrengthValue">1.00</span>
+            </div>
+            </div>
+        </div>
 
-    function createProgram(vertexShader, fragmentShader) {
-      const prog = gl.createProgram();
-      gl.attachShader(prog, vertexShader);
-      gl.attachShader(prog, fragmentShader);
-      gl.linkProgram(prog);
+        <div id="canvasContainer">
+            <canvas id="glcanvas"></canvas>
+        </div>
 
-      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-        console.error('Program link error:', gl.getProgramInfoLog(prog));
-        gl.deleteProgram(prog);
-        return null;
-      }
-      return prog;
-    }
+        <!-- Hidden video element (camera source) -->
+        <video id="video" autoplay playsinline style="display:none;"></video>
 
-    function resizeCanvasToDisplaySize() {
-      if (!gl) return;
+        <!-- Footer -->
+        <footer id="footer">
+            <ul class="icons">
+            <li><a title="Facebook" href="https://www.facebook.com/alex0k1" class="icon brands fa-facebook-f"><span class="label">Facebook</span></a></li>
+            <li><a title="Instagram" href="https://www.instagram.com/alex0k12/" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
+            <li><a title="Linkedin" href="https://www.linkedin.com/in/jalexmina/" class="icon brands fa-linkedin"><span class="label">Linkedin</span></a></li>
+            <li><a title="Email" href="mailto:juanmina1200@gmail.com" class="icon solid fa-envelope"><span class="label">Email</span></a></li>
+            <li><a title="Resume" href="assets/Alex-Resume.pdf" class="icon solid fa-receipt"><span class="label">Resume</span></a></li>
+            </ul>
+        </footer>
 
-      const dpr = window.devicePixelRatio || 1;
-      const displayWidth = Math.floor(canvas.clientWidth * dpr);
-      const displayHeight = Math.floor(canvas.clientHeight * dpr);
+        <script>
+            const startbuttonIF = document.getElementById('startbuttonIF');
+            const effectbuttonIFs = document.querySelectorAll('.effect-buttonIF');
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('glcanvas');
 
-      if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
-        canvas.width = displayWidth;
-        canvas.height = displayHeight;
-      }
+            const blurKernelSlider = document.getElementById('blurKernelSlider');
+            const blurKernelValueSpan = document.getElementById('blurKernelValue');
+            const sharpenKernelSlider = document.getElementById('sharpenKernelSlider');
+            const sharpenKernelValueSpan = document.getElementById('sharpenKernelValue');
+            const edgeKernelSlider = document.getElementById('edgeKernelSlider');
+            const edgeKernelValueSpan = document.getElementById('edgeKernelValue');
+            const denoiseStrengthSlider = document.getElementById('denoiseStrengthSlider');
+            const denoiseStrengthValueSpan = document.getElementById('denoiseStrengthValue');
 
-      gl.viewport(0, 0, canvas.width, canvas.height);
-    }
+            let gl;
+            let program;
+            let positionBuffer;
+            let texcoordBuffer;
+            let texture;
 
-    function render() {
-      if (!gl || video.readyState < video.HAVE_CURRENT_DATA) {
-        requestAnimationFrame(render);
-        return;
-      }
+            let u_samplerLocation;
+            let u_enableGrayscaleLocation;
+            let u_enableSharpenLocation;
+            let u_enableBlurLocation;
+            let u_enableEdgeLocation;
+            let u_enableDenoiseLocation;
 
-      resizeCanvasToDisplaySize();
-      gl.clear(gl.COLOR_BUFFER_BIT);
+            // convolution uniforms
+            let u_texelSizeLocation;
+            let u_blurRadiusLocation;
+            let u_sharpenRadiusLocation;
+            let u_edgeRadiusLocation;
+            let u_denoiseStrengthLocation;
 
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      try {
-        gl.texImage2D(
-          gl.TEXTURE_2D,
-          0,
-          gl.RGBA,
-          gl.RGBA,
-          gl.UNSIGNED_BYTE,
-          video
-        );
-      } catch (e) {
-        console.warn('texImage2D video error:', e);
-      }
+            // State for each effect (independent, except blur/sharpen)
+            const effectsState = 
+            {
+                grayscale: false,
+                sharpen: false,
+                blur: false,
+                edge: false,
+                denoise: false
+            };
 
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.uniform1i(u_samplerLocation, 0);
+            // kernel radii: 0..12 => 1x1,3x3,...,25x25 (for blur/sharpen)
+            // edge radius: 1..3 => 3x3..7x7 spacing
+            let blurRadius = parseInt(blurKernelSlider.value, 10) || 1;
+            let sharpenRadius = parseInt(sharpenKernelSlider.value, 10) || 1;
+            let edgeRadius = parseInt(edgeKernelSlider.value, 10) || 1;
+            let denoiseStrength = parseFloat(denoiseStrengthSlider.value) || 1.0;
 
-      // Push effect state to shader (bools as ints)
-      if (u_enableGrayscaleLocation) gl.uniform1i(u_enableGrayscaleLocation, effectsState.grayscale ? 1 : 0);
-      if (u_enableSharpenLocation)   gl.uniform1i(u_enableSharpenLocation,   effectsState.sharpen   ? 1 : 0);
-      if (u_enableBlurLocation)      gl.uniform1i(u_enableBlurLocation,      effectsState.blur      ? 1 : 0);
-      if (u_enableEdgeLocation)      gl.uniform1i(u_enableEdgeLocation,      effectsState.edge      ? 1 : 0);
-      if (u_enableDenoiseLocation)   gl.uniform1i(u_enableDenoiseLocation,   effectsState.denoise   ? 1 : 0);
+            function labelForRadius(r) 
+            {
+            const size = r * 2 + 1;
+            return size + '×' + size;
+            }
 
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
+            function updateBlurLabel() 
+            {
+                blurKernelValueSpan.textContent = labelForRadius(blurRadius);
+            }
+            function updateSharpenLabel() 
+            {
+                sharpenKernelValueSpan.textContent = labelForRadius(sharpenRadius);
+            }
+            function updateEdgeLabel() 
+            {
+                edgeKernelValueSpan.textContent = labelForRadius(edgeRadius);
+            }
+            function updateDenoiseLabel() 
+            {
+                denoiseStrengthValueSpan.textContent = denoiseStrength.toFixed(2);
+            }
 
-      requestAnimationFrame(render);
-    }
+            updateBlurLabel();
+            updateSharpenLabel();
+            updateEdgeLabel();
+            updateDenoiseLabel();
 
-    window.addEventListener('resize', () => {
-      if (gl) {
-        resizeCanvasToDisplaySize();
-      }
-    });
-  </script>
+            blurKernelSlider.addEventListener('input', () => 
+            {
+                blurRadius = parseInt(blurKernelSlider.value, 10) || 0;
+                updateBlurLabel();
+            });
 
-</body>
+            sharpenKernelSlider.addEventListener('input', () => 
+            {
+                sharpenRadius = parseInt(sharpenKernelSlider.value, 10) || 0;
+                updateSharpenLabel();
+            });
+
+            edgeKernelSlider.addEventListener('input', () => 
+            {
+                edgeRadius = parseInt(edgeKernelSlider.value, 10) || 1;
+                if (edgeRadius < 1) edgeRadius = 1;
+                updateEdgeLabel();
+            });
+
+            denoiseStrengthSlider.addEventListener('input', () => 
+            {
+                denoiseStrength = parseFloat(denoiseStrengthSlider.value) || 0.0;
+                updateDenoiseLabel();
+            });
+
+            // Camera state
+            let mediaStream = null;
+            let isCameraRunning = false;
+
+            // Toggle start/stop on the same button
+            startbuttonIF.addEventListener('click', handleCameraToggle);
+
+            effectbuttonIFs.forEach((btn) => {
+                btn.addEventListener('click', () => 
+                {
+                    const effectName = btn.getAttribute('data-effect');
+
+                    // Toggle active class
+                    const nowActive = btn.classList.toggle('active');
+
+                    // Update JS state
+                    effectsState[effectName] = nowActive;
+
+                    // Make blur & sharpen mutually exclusive
+                    if (effectName === 'blur' && nowActive) 
+                    {
+                        effectsState.sharpen = false;
+                        const sharpenBtn = document.querySelector('.effect-buttonIF[data-effect="sharpen"]');
+                        if (sharpenBtn) sharpenBtn.classList.remove('active');
+                    } 
+                    else if (effectName === 'sharpen' && nowActive) 
+                    {
+                        effectsState.blur = false;
+                        const blurBtn = document.querySelector('.effect-buttonIF[data-effect="blur"]');
+                        if (blurBtn) blurBtn.classList.remove('active');
+                    }
+
+                    console.log('Effects state:', effectsState);
+                });
+            });
+
+            async function handleCameraToggle() 
+            {
+                if (!isCameraRunning) 
+                {
+                    await startCameraAndWebGL();
+                } 
+                else 
+                {
+                    stopCamera();
+                }
+            }
+
+            async function startCameraAndWebGL() 
+            {
+                try 
+                {
+                    // Always request a fresh stream (will re-prompt for permission)
+                    mediaStream = await navigator.mediaDevices.getUserMedia({
+                        video: 
+                        {
+                            facingMode: 'user',         // or 'environment' on mobile
+                            width:  { ideal: 1920 },    // or exact: { exact: 1920 }
+                            height: { ideal: 1080 }
+                        },
+                        audio: false
+                    });
+
+                    video.srcObject = mediaStream;
+                    await video.play();
+
+                    // Initialize WebGL and render loop only once
+                    if (!gl) 
+                    {
+                        initWebGL();
+                        requestAnimationFrame(render);
+                    }
+
+                    isCameraRunning = true;
+                    startbuttonIF.textContent = 'Stop Camera';
+                } 
+                catch (err) 
+                {
+                    console.error('Error accessing camera:', err);
+                    alert('Could not access camera. Check permissions and HTTPS.');
+                }
+            }
+
+            function stopCamera() 
+            {
+                if (mediaStream) 
+                {
+                    // Fully stop the camera hardware
+                    mediaStream.getTracks().forEach(track => track.stop());
+                    mediaStream = null;
+                }
+
+                video.pause();
+                video.srcObject = null;
+
+                isCameraRunning = false;
+                startbuttonIF.textContent = 'Start Camera';
+
+                // --- Clear the WebGL canvas to black when the camera stops ---
+                if (gl) 
+                {
+                    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                }
+            }
+
+            function initWebGL() 
+            {
+                gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (!gl) 
+                {
+                    alert('WebGL not supported');
+                    return;
+                }
+
+                resizeCanvasToDisplaySize();
+
+                const vertexShaderSource = `
+                    attribute vec2 a_position;
+                    attribute vec2 a_texcoord;
+
+                    varying vec2 v_texcoord;
+
+                    void main() 
+                    {
+                        gl_Position = vec4(a_position, 0.0, 1.0);
+                        v_texcoord = a_texcoord;
+                    }
+                `;
+
+                const fragmentShaderSource = `
+                    precision mediump float;
+
+                    varying vec2 v_texcoord;
+                    uniform sampler2D u_sampler;
+
+                    // Effect toggle uniforms
+                    uniform bool u_enableGrayscale;
+                    uniform bool u_enableSharpen;
+                    uniform bool u_enableBlur;
+                    uniform bool u_enableEdge;
+                    uniform bool u_enableDenoise;
+
+                    // Convolution support
+                    uniform vec2  u_texelSize;
+                    uniform int   u_blurRadius;        // 0..12
+                    uniform int   u_sharpenRadius;     // 0..12
+                    uniform int   u_edgeRadius;        // 1..12 (we clamp to 3 in use via slider)
+                    uniform float u_denoiseStrength;   // 0..1
+                    const int MAX_RADIUS = 12;         // supports up to 25x25
+
+                    vec3 boxBlur(vec2 uv, int r) 
+                    {
+                        if (r < 1) 
+                        {
+                            return texture2D(u_sampler, uv).rgb;
+                        }
+                        if (r > MAX_RADIUS) 
+                        {
+                            r = MAX_RADIUS;
+                        }
+
+                        vec3 sum = vec3(0.0);
+                        float count = 0.0;
+
+                        for (int y = -MAX_RADIUS; y <= MAX_RADIUS; ++y) 
+                        {
+                            for (int x = -MAX_RADIUS; x <= MAX_RADIUS; ++x) 
+                            {
+                                if (x < -r || x > r || y < -r || y > r) 
+                                {
+                                    continue;
+                                }
+                                vec2 offset = vec2(float(x), float(y)) * u_texelSize;
+                                vec3 sample = texture2D(u_sampler, uv + offset).rgb;
+                                sum += sample;
+                                count += 1.0;
+                            }
+                        }
+
+                        return sum / max(count, 1.0);
+                    }
+
+                    float luminance(vec3 c) 
+                    {
+                        return dot(c, vec3(0.299, 0.587, 0.114));
+                    }
+
+                    // Simple bilateral-like denoise:
+                    // small fixed radius, spatial + range weights.
+                    vec3 denoiseBilateral(vec2 uv) 
+                    {
+                        const int r = 2;                // 5x5 neighborhood
+                        const float sigmaS = 2.0;       // spatial sigma
+                        const float sigmaR = 0.12;      // range (color) sigma
+
+                        vec3 center = texture2D(u_sampler, uv).rgb;
+                        vec3 sum = vec3(0.0);
+                        float wsum = 0.0;
+
+                        for (int y = -r; y <= r; ++y) 
+                        {
+                            for (int x = -r; x <= r; ++x) 
+                            {
+                                vec2 offset = vec2(float(x), float(y)) * u_texelSize;
+                                vec3 c = texture2D(u_sampler, uv + offset).rgb;
+
+                                float ds2 = float(x * x + y * y);
+                                vec3 diff = c - center;
+                                float dc2 = dot(diff, diff);
+
+                                float wS = exp(-ds2 / (2.0 * sigmaS * sigmaS));
+                                float wR = exp(-dc2 / (2.0 * sigmaR * sigmaR));
+                                float w = wS * wR;
+
+                                sum += c * w;
+                                wsum += w;
+                            }
+                        }
+
+                        if (wsum < 1e-5) 
+                        {
+                            return center;
+                        }
+
+                        vec3 filtered = sum / wsum;
+                        // Blend between original and filtered based on slider
+                        return mix(center, filtered, clamp(u_denoiseStrength, 0.0, 1.0));
+                    }
+
+                    // Evaluate the "source" color at an arbitrary UV, taking into account
+                    // denoise + blur/sharpen state, so edge detection and final color
+                    // see the processed image.
+                    vec3 evalSourceColor(vec2 uv) 
+                    {
+                        vec3 base = texture2D(u_sampler, uv).rgb;
+
+                        if (u_enableDenoise) 
+                        {
+                            base = denoiseBilateral(uv);
+                        }
+
+                        if (u_enableBlur) 
+                        {
+                            return boxBlur(uv, u_blurRadius);
+                        } 
+                        else if (u_enableSharpen) 
+                        {
+                            vec3 blurred = boxBlur(uv, u_sharpenRadius);
+                            float amount = 1.0; // sharpen strength
+                            return base + amount * (base - blurred);
+                        }
+
+                        return base;
+                    }
+
+                    float edgeMagnitude(vec2 uv) 
+                    {
+                        int r = u_edgeRadius;
+                        if (r < 1) r = 1;
+                        if (r > 3) r = 3;  // effectively limit to 7x7 even though MAX_RADIUS is larger
+
+                        vec2 offX = vec2(float(r), 0.0) * u_texelSize;
+                        vec2 offY = vec2(0.0, float(r)) * u_texelSize;
+
+                        // Sample a 3x3 grid of the *processed* image
+                        float tl = luminance(evalSourceColor(uv - offX - offY));
+                        float  t = luminance(evalSourceColor(uv          - offY));
+                        float tr = luminance(evalSourceColor(uv + offX - offY));
+
+                        float bl = luminance(evalSourceColor(uv - offX + offY));
+                        float  b = luminance(evalSourceColor(uv          + offY));
+                        float br = luminance(evalSourceColor(uv + offX + offY));
+
+                        float  l = luminance(evalSourceColor(uv - offX));
+                        float  rpx = luminance(evalSourceColor(uv + offX));
+
+                        // Sobel-like kernels
+                        float gx = -tl - 2.0 * l - bl + tr + 2.0 * rpx + br;
+                        float gy = -tl - 2.0 * t - tr + bl + 2.0 * b + br;
+
+                        float mag = sqrt(gx * gx + gy * gy);
+                        return clamp(mag, 0.0, 1.0);
+                    }
+
+                    void main() 
+                    {
+                        // Start from processed color (denoise + blur/sharpen aware)
+                        vec3 rgb = evalSourceColor(v_texcoord);
+
+                        // Edge detection applied on the processed image
+                        if (u_enableEdge) 
+                        {
+                            float e = edgeMagnitude(v_texcoord);
+                            rgb = vec3(e);
+                        }
+
+                        if (u_enableGrayscale) 
+                        {
+                            float gray = luminance(rgb);
+                            rgb = vec3(gray);
+                        }
+
+                    // (u_enableDenoise is already baked into evalSourceColor)
+                    gl_FragColor = vec4(rgb, 1.0);
+                }
+                `;
+
+                const vertexShader = createShader(gl.VERTEX_SHADER, vertexShaderSource);
+                const fragmentShader = createShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
+                program = createProgram(vertexShader, fragmentShader);
+
+                gl.useProgram(program);
+
+                const positionLocation = gl.getAttribLocation(program, 'a_position');
+                const texcoordLocation = gl.getAttribLocation(program, 'a_texcoord');
+
+                u_samplerLocation         = gl.getUniformLocation(program, 'u_sampler');
+                u_enableGrayscaleLocation = gl.getUniformLocation(program, 'u_enableGrayscale');
+                u_enableSharpenLocation   = gl.getUniformLocation(program, 'u_enableSharpen');
+                u_enableBlurLocation      = gl.getUniformLocation(program, 'u_enableBlur');
+                u_enableEdgeLocation      = gl.getUniformLocation(program, 'u_enableEdge');
+                u_enableDenoiseLocation   = gl.getUniformLocation(program, 'u_enableDenoise');
+
+                // convolution uniforms
+                u_texelSizeLocation      = gl.getUniformLocation(program, 'u_texelSize');
+                u_blurRadiusLocation     = gl.getUniformLocation(program, 'u_blurRadius');
+                u_sharpenRadiusLocation  = gl.getUniformLocation(program, 'u_sharpenRadius');
+                u_edgeRadiusLocation     = gl.getUniformLocation(program, 'u_edgeRadius');
+                u_denoiseStrengthLocation = gl.getUniformLocation(program, 'u_denoiseStrength');
+
+                // Full-screen quad (two triangles) in clip space
+                const positions = new Float32Array([
+                -1, -1,
+                1, -1,
+                -1,  1,
+                -1,  1,
+                1, -1,
+                1,  1
+                ]);
+
+                // Texture coordinates
+                const texcoords = new Float32Array([
+                0, 1,
+                1, 1,
+                0, 0,
+                0, 0,
+                1, 1,
+                1, 0
+                ]);
+
+                // Position buffer
+                positionBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+                gl.enableVertexAttribArray(positionLocation);
+                gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+
+                // Texcoord buffer
+                texcoordBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, texcoords, gl.STATIC_DRAW);
+                gl.enableVertexAttribArray(texcoordLocation);
+                gl.vertexAttribPointer(texcoordLocation, 2, gl.FLOAT, false, 0, 0);
+
+                // Texture from video
+                texture = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.texImage2D(
+                gl.TEXTURE_2D,
+                0,
+                gl.RGBA,
+                1,
+                1,
+                0,
+                gl.RGBA,
+                gl.UNSIGNED_BYTE,
+                new Uint8Array([0, 0, 0, 255])
+                );
+
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+                gl.clearColor(0, 0, 0, 1);
+            }
+
+            function createShader(type, source) 
+            {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) 
+                {
+                    console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                    return null;
+                }
+                return shader;
+            }
+
+            function createProgram(vertexShader, fragmentShader) 
+            {
+                const prog = gl.createProgram();
+                gl.attachShader(prog, vertexShader);
+                gl.attachShader(prog, fragmentShader);
+                gl.linkProgram(prog);
+
+                if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) 
+                {
+                    console.error('Program link error:', gl.getProgramInfoLog(prog));
+                    gl.deleteProgram(prog);
+                    return null;
+                }
+                return prog;
+            }
+
+            function resizeCanvasToDisplaySize() 
+            {
+                if (!gl) return;
+
+                const dpr = window.devicePixelRatio || 1;
+                const displayWidth = Math.floor(canvas.clientWidth * dpr);
+                const displayHeight = Math.floor(canvas.clientHeight * dpr);
+
+                if (canvas.width !== displayWidth || canvas.height !== displayHeight) 
+                {
+                    canvas.width = displayWidth;
+                    canvas.height = displayHeight;
+                }
+
+                gl.viewport(0, 0, canvas.width, canvas.height);
+            }
+
+            function render() 
+            {
+                if (!gl || video.readyState < video.HAVE_CURRENT_DATA) 
+                {
+                    requestAnimationFrame(render);
+                    return;
+                }
+
+                resizeCanvasToDisplaySize();
+                gl.clear(gl.COLOR_BUFFER_BIT);
+
+                // update texel size + radii + denoise strength
+                if (u_texelSizeLocation) 
+                {
+                    gl.uniform2f(u_texelSizeLocation, 1.0 / canvas.width, 1.0 / canvas.height);
+                }
+                if (u_blurRadiusLocation) 
+                {
+                    gl.uniform1i(u_blurRadiusLocation, blurRadius);
+                }
+                if (u_sharpenRadiusLocation) 
+                {
+                    gl.uniform1i(u_sharpenRadiusLocation, sharpenRadius);
+                }
+                if (u_edgeRadiusLocation) 
+                {
+                    gl.uniform1i(u_edgeRadiusLocation, edgeRadius);
+                }
+                if (u_denoiseStrengthLocation) 
+                {
+                    gl.uniform1f(u_denoiseStrengthLocation, denoiseStrength);
+                }
+
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+
+                try 
+                {
+                    gl.texImage2D(
+                    gl.TEXTURE_2D,
+                    0,
+                    gl.RGBA,
+                    gl.RGBA,
+                    gl.UNSIGNED_BYTE,
+                    video
+                    );
+                } 
+                catch (e) 
+                {
+                    console.warn('texImage2D video error:', e);
+                }
+
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.uniform1i(u_samplerLocation, 0);
+
+                // Push effect state to shader (bools as ints)
+                if (u_enableGrayscaleLocation) gl.uniform1i(u_enableGrayscaleLocation, effectsState.grayscale ? 1 : 0);
+                if (u_enableSharpenLocation)   gl.uniform1i(u_enableSharpenLocation,   effectsState.sharpen   ? 1 : 0);
+                if (u_enableBlurLocation)      gl.uniform1i(u_enableBlurLocation,      effectsState.blur      ? 1 : 0);
+                if (u_enableEdgeLocation)      gl.uniform1i(u_enableEdgeLocation,      effectsState.edge      ? 1 : 0);
+                if (u_enableDenoiseLocation)   gl.uniform1i(u_enableDenoiseLocation,   effectsState.denoise   ? 1 : 0);
+
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+                requestAnimationFrame(render);
+            }
+
+            window.addEventListener('resize', () => 
+            {
+                if (gl) 
+                {
+                    resizeCanvasToDisplaySize();
+                }
+            });
+        </script>
+
+    </body>
 </html>
