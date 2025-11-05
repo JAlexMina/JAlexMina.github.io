@@ -784,6 +784,36 @@
                 gl.viewport(0, 0, canvas.width, canvas.height);
             }
 
+            function updateQuadForAspect() {
+                if (!gl || !video.videoWidth || !video.videoHeight) return;
+
+                const videoAspect  = video.videoWidth / video.videoHeight;
+                const canvasAspect = canvas.width / canvas.height;
+
+                let xScale = 1.0;
+                let yScale = 1.0;
+
+                if (canvasAspect > videoAspect) {
+                    // Canvas is "too wide" -> pillarbox (bars left/right)
+                    xScale = videoAspect / canvasAspect;
+                } else {
+                    // Canvas is "too tall" -> letterbox (bars top/bottom)
+                    yScale = canvasAspect / videoAspect;
+                }
+
+                const positions = new Float32Array([
+                    -xScale, -yScale,
+                    xScale, -yScale,
+                    -xScale,  yScale,
+                    -xScale,  yScale,
+                    xScale, -yScale,
+                    xScale,  yScale
+                ]);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+            }
+
             function render() 
             {
                 if (!gl || video.readyState < video.HAVE_CURRENT_DATA) 
@@ -793,6 +823,7 @@
                 }
 
                 resizeCanvasToDisplaySize();
+                updateQuadForAspect();
                 gl.clear(gl.COLOR_BUFFER_BIT);
 
                 // update texel size + radii + denoise strength
