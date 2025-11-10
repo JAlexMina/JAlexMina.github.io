@@ -9,13 +9,16 @@
   <div id="game-container"></div>
 
   <script type="module">
-    (async () => {
-      // initialize CheerpJ
+    (async function () {
       await cheerpjInit();
 
-      // run your main class from the JAR
-      // (JAR is in same folder as this HTML file)
-      await cheerpjRunJar("SuperHexagonClone.jar", "SuperHexaSweeperDriver");
+      // optional: requested AWT/Swing window size
+      cheerpjCreateDisplay(800, 600);
+
+      // JAR is in the same folder as this HTML,
+      // so CheerpJ sees it as /app/SuperHexagonClone.jar
+      const exitCode = await cheerpjRunJar("/app/SuperHexagonClone.jar");
+      console.log("Game exited with code", exitCode);
     })();
   </script>
 </body>
