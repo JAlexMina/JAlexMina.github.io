@@ -9,12 +9,14 @@
   <div id="game-container"></div>
 
   <script type="module">
-    // initialise CheerpJ runtime
-    await cheerpjInit();
+    (async () => {
+      // initialize CheerpJ
+      await cheerpjInit();
 
-    // run your main class from the JAR
-    // Replace mygame.jar and com.example.Main with your JAR and main class
-    cheerpjRunJar("/SuperHexagonClone.jar", "SuperHexaSweeperDriver");
+      // run your main class from the JAR
+      // (JAR is in same folder as this HTML file)
+      await cheerpjRunJar("SuperHexagonClone.jar", "SuperHexaSweeperDriver");
+    })();
   </script>
 </body>
 </html>
