@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>My JavaFX Game</title>
+  <script src="https://cjrtnc.leaningtech.com/4.2/loader.js"></script>
+</head>
+<body>
+  <div id="game-container"></div>
+
+  <script type="module">
+    // initialise CheerpJ runtime
+    await cheerpjInit();
+
+    // run your main class from the JAR
+    // Replace mygame.jar and com.example.Main with your JAR and main class
+    cheerpjRunJar("/SuperHexagonClone.jar", "SuperHexaSweeperDriver");
+  </script>
+</body>
+</html>
